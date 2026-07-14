@@ -63,6 +63,7 @@ describe("hermesAdapter.build", () => {
       "skills/twitter-post/SKILL.md",
       "skills/twitter-post/scripts/post.py",
       "portfolio/engine.py",
+      "agent.json",
       "agent.lock.json",
       ".env.example",
     ]) expect(existsSync(join(out, f)), f).toBe(true);

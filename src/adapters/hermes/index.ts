@@ -46,6 +46,7 @@ export const hermesAdapter: Adapter = {
     for (const entry of project.assetEntries)
       await cp(join(project.root, "assets", entry), join(outDir, entry), { recursive: true });
 
+    await writeInto(outDir, "agent.json", JSON.stringify(manifest, null, 2) + "\n");
     await writeInto(outDir, "agent.lock.json",
       serializeLock(createLock(manifest, resolvedSkills)));
     await writeInto(outDir, ".env.example", buildEnvExample(manifest));
