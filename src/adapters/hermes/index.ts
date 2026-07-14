@@ -13,6 +13,10 @@ async function writeInto(outDir: string, relPath: string, content: string): Prom
   await writeFile(abs, content);
 }
 
+// 排除本地编译/系统垃圾,产物必须可复现
+const junkRe = /(^|\/)(__pycache__(\/|$)|\.DS_Store$)|\.pyc$/;
+const copyFilter = (src: string) => !junkRe.test(src);
+
 async function listFiles(dir: string, base = ""): Promise<string[]> {
   const out: string[] = [];
   for (const e of await readdir(dir, { withFileTypes: true })) {
@@ -37,14 +41,14 @@ export const hermesAdapter: Adapter = {
 
     for (const skillDir of project.inlineSkillDirs) {
       const rel = relative(join(project.root, "skills"), skillDir);
-      await cp(skillDir, join(outDir, "skills", rel), { recursive: true });
+      await cp(skillDir, join(outDir, "skills", rel), { recursive: true, filter: copyFilter });
     }
     for (const s of resolvedSkills)
       for (const f of s.files)
         await writeInto(outDir, join("skills", s.skill, f.path), f.content);
 
     for (const entry of project.assetEntries)
-      await cp(join(project.root, "assets", entry), join(outDir, entry), { recursive: true });
+      await cp(join(project.root, "assets", entry), join(outDir, entry), { recursive: true, filter: copyFilter });
 
     await writeInto(outDir, "agent.json", JSON.stringify(manifest, null, 2) + "\n");
     await writeInto(outDir, "agent.lock.json",

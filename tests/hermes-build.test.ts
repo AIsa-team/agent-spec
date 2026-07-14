@@ -34,6 +34,9 @@ cron: cron/jobs.yaml
     'jobs:\n  - { id: tick, schedule: "0 9 * * *", prompt: tick, model: default }\n');
   mkdirSync(join(root, "assets", "portfolio"), { recursive: true });
   writeFileSync(join(root, "assets", "portfolio", "engine.py"), "print(1)");
+  mkdirSync(join(root, "assets", "portfolio", "__pycache__"), { recursive: true });
+  writeFileSync(join(root, "assets", "portfolio", "__pycache__", "engine.cpython-311.pyc"), "junk");
+  writeFileSync(join(root, "skills", "demo", "hello", ".DS_Store"), "junk");
   return root;
 }
 
@@ -67,6 +70,11 @@ describe("hermesAdapter.build", () => {
       "agent.lock.json",
       ".env.example",
     ]) expect(existsSync(join(out, f)), f).toBe(true);
+  });
+
+  it("excludes __pycache__ / .pyc / .DS_Store junk from the bundle", () => {
+    expect(existsSync(join(out, "portfolio/__pycache__"))).toBe(false);
+    expect(existsSync(join(out, "skills/demo/hello/.DS_Store"))).toBe(false);
   });
 
   it("concatenates soul files in order", () => {
