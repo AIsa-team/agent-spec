@@ -21,3 +21,10 @@ export {
 } from "./adapters/adapter.js";
 export { hermesAdapter } from "./adapters/hermes/index.js";
 export { buildEnvExample } from "./envfile.js";
+export {
+  emptyIndex,
+  parseIndex,
+  upsertIndexEntry,
+  serializeIndex,
+  type AgentIndex,
+} from "./agent-index.js";
