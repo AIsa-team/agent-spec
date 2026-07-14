@@ -1,6 +1,7 @@
 {
   "name": "@aisa-one/agent-spec",
   "version": "0.1.0",
+  "private": true,
   "description": "AgentSpec v1: schema, loader, skill resolver, and runtime adapters for AIsa agent definitions",
   "type": "module",
   "main": "dist/index.js",
