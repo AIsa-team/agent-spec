@@ -51,6 +51,13 @@ describe("loadAgentProject", () => {
     await expect(loadAgentProject(bad)).rejects.toThrow(/demo\/missing/);
   });
 
+  it("fails when a declared setup requirements file is missing", async () => {
+    const bad = makeFixture();
+    writeFileSync(join(bad, "agent.yaml"),
+      MANIFEST + "setup:\n  python:\n    - { name: x, requirements: requirements/x.txt, env: X_PY }\n");
+    await expect(loadAgentProject(bad)).rejects.toThrow(/requirements\/x.txt/);
+  });
+
   it("fails when agent.yaml is absent", async () => {
     const empty = mkdtempSync(join(tmpdir(), "agentspec-empty-"));
     await expect(loadAgentProject(empty)).rejects.toThrow(/agent.yaml/);

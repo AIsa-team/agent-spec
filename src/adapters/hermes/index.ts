@@ -1,4 +1,4 @@
-import { mkdir, writeFile, cp, readdir } from "node:fs/promises";
+import { mkdir, writeFile, cp, readdir, readFile } from "node:fs/promises";
 import { join, dirname, relative } from "node:path";
 import type { Adapter, BuildInput, BuildResult } from "../adapter.js";
 import { registerAdapter } from "../adapter.js";
@@ -49,6 +49,10 @@ export const hermesAdapter: Adapter = {
 
     for (const entry of project.assetEntries)
       await cp(join(project.root, "assets", entry), join(outDir, entry), { recursive: true, filter: copyFilter });
+
+    for (const s of manifest.setup.python)
+      await writeInto(outDir, s.requirements,
+        await readFile(join(project.root, s.requirements), "utf8"));
 
     await writeInto(outDir, "agent.json", JSON.stringify(manifest, null, 2) + "\n");
     await writeInto(outDir, "agent.lock.json",

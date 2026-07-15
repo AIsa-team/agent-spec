@@ -62,6 +62,49 @@ skills:
     expect(m.env.required).toEqual([]);
   });
 
+  it("parses setup.python with defaults and rejects bad env names", () => {
+    const m = parseManifest(`
+spec: agentspec/v1
+id: s
+name: S
+version: 0.0.1
+description: d
+setup:
+  python:
+    - name: dsa
+      requirements: requirements/dsa.txt
+      env: DSA_VENV_PYTHON
+      optional: true
+    - name: core
+      requirements: requirements/core.txt
+      env: CORE_PY
+`);
+    expect(m.setup.python).toHaveLength(2);
+    expect(m.setup.python[0].optional).toBe(true);
+    expect(m.setup.python[1].optional).toBe(false);
+    expect(() => parseManifest(`
+spec: agentspec/v1
+id: s
+name: S
+version: 0.0.1
+description: d
+setup:
+  python:
+    - { name: x, requirements: r.txt, env: "bad-name" }
+`)).toThrow(/env/);
+  });
+
+  it("setup defaults to empty python list", () => {
+    const m = parseManifest(`
+spec: agentspec/v1
+id: s2
+name: S
+version: 0.0.1
+description: d
+`);
+    expect(m.setup.python).toEqual([]);
+  });
+
   it("rejects wrong spec version", () => {
     expect(() => parseManifest(VALID.replace("agentspec/v1", "agentspec/v2")))
       .toThrow(AgentSpecError);

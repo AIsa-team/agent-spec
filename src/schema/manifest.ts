@@ -20,6 +20,14 @@ const aisaSkillRef = z.object({
   ref: z.string().min(1).default("main"),
 });
 
+const pythonSetup = z.object({
+  name: z.string().regex(/^[a-z0-9][a-z0-9-]*$/),
+  requirements: z.string().min(1),          // 源项目内相对路径,随产物打包
+  env: z.string().regex(/^[A-Z][A-Z0-9_]*$/),
+  optional: z.boolean().default(false),
+  description: z.string().optional(),
+});
+
 const manifestSchema = z.object({
   spec: z.literal("agentspec/v1"),
   id: slug,
@@ -41,6 +49,9 @@ const manifestSchema = z.object({
     aisa: z.array(aisaSkillRef).default([]),
   }).default({ inline: [], aisa: [] }),
   cron: z.string().optional(),
+  setup: z.object({
+    python: z.array(pythonSetup).default([]),
+  }).default({ python: [] }),
   update: z.object({
     channel: z.enum(["latest", "pinned"]).default("latest"),
     auto: z.boolean().default(true),
@@ -55,6 +66,7 @@ const manifestSchema = z.object({
 export type AgentManifest = z.infer<typeof manifestSchema>;
 export type AisaSkillRef = z.infer<typeof aisaSkillRef>;
 export type EnvVarDecl = z.infer<typeof envVarDecl>;
+export type PythonSetup = z.infer<typeof pythonSetup>;
 
 export function parseManifest(yamlText: string): AgentManifest {
   let raw: unknown;

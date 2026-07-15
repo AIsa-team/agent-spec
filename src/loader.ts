@@ -50,6 +50,11 @@ export async function loadAgentProject(dir: string): Promise<AgentProject> {
     inlineSkillDirs.push(skillDir);
   }
 
+  for (const s of manifest.setup.python) {
+    if (!existsSync(join(root, s.requirements)))
+      throw new AgentSpecError(`setup.python "${s.name}" requirements file not found: ${s.requirements}`);
+  }
+
   const assetsDir = join(root, "assets");
   let assetEntries: string[] = [];
   if (existsSync(assetsDir) && (await stat(assetsDir)).isDirectory())

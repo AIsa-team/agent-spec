@@ -23,7 +23,12 @@ env:
 skills:
   inline: [demo/hello]
 cron: cron/jobs.yaml
+setup:
+  python:
+    - { name: dsa, requirements: requirements/dsa.txt, env: DSA_VENV_PYTHON, optional: true }
 `);
+  mkdirSync(join(root, "requirements"));
+  writeFileSync(join(root, "requirements", "dsa.txt"), "pandas==3.0.2\n");
   mkdirSync(join(root, "soul"));
   writeFileSync(join(root, "soul", "01-identity.md"), "# Identity");
   writeFileSync(join(root, "soul", "02-rules.md"), "# Rules");
@@ -66,6 +71,7 @@ describe("hermesAdapter.build", () => {
       "skills/twitter-post/SKILL.md",
       "skills/twitter-post/scripts/post.py",
       "portfolio/engine.py",
+      "requirements/dsa.txt",
       "agent.json",
       "agent.lock.json",
       ".env.example",
