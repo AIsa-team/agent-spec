@@ -25,6 +25,8 @@ export {
   emptyIndex,
   parseIndex,
   upsertIndexEntry,
+  setIndexTemplate,
   serializeIndex,
   type AgentIndex,
+  type AgentIndexTarget,
 } from "./agent-index.js";
