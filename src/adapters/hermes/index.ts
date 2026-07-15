@@ -29,12 +29,12 @@ async function listFiles(dir: string, base = ""): Promise<string[]> {
 
 export const hermesAdapter: Adapter = {
   target: "hermes",
-  async build({ project, resolvedSkills }: BuildInput, outDir: string): Promise<BuildResult> {
+  async build({ project, resolvedSkills, aisaModels }: BuildInput, outDir: string): Promise<BuildResult> {
     const { manifest } = project;
 
     const soul = project.soulFiles.map((f) => f.content).join("\n\n---\n\n");
     await writeInto(outDir, "profile/SOUL.template.md", soul);
-    await writeInto(outDir, "profile/config.template.yaml", buildHermesConfig(manifest));
+    await writeInto(outDir, "profile/config.template.yaml", buildHermesConfig(manifest, aisaModels));
     if (project.cronJobs.length)
       await writeInto(outDir, "profile/cron/jobs.template.json",
         buildHermesCronJobs(project.cronJobs));

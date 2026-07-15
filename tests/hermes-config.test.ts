@@ -43,4 +43,10 @@ describe("buildHermesConfig", () => {
     expect(cfg.approvals.mode).toBe("off");
     expect(cfg.providers.aisa.key_env).toBe("AISA_API_KEY");
   });
+
+  it("injects a dynamic aisa model list when provided, keeps static list otherwise", () => {
+    const dynamic = parseYaml(buildHermesConfig(manifest, ["m-b", "m-a"]).replaceAll(/\{\{(\w+)\}\}/g, "V_$1")) as any;
+    expect(dynamic.providers.aisa.models).toEqual(["m-a", "m-b"]);   // 注入且排序
+    expect(cfg.providers.aisa.models.length).toBeGreaterThan(0);     // 未注入时保留静态列表
+  });
 });

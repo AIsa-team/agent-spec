@@ -19,13 +19,15 @@ function deepMerge(base: any, override: any): any {
   return out;
 }
 
-export function buildHermesConfig(manifest: AgentManifest): string {
+export function buildHermesConfig(manifest: AgentManifest, aisaModels?: string[]): string {
   const baseText = readFileSync(join(TEMPLATES_DIR, "hermes", "base-config.yaml"), "utf8");
   const cfg = parseYaml(toSentinel(baseText)) as any;
 
   cfg.model.default = toSentinel("{{MODEL_DEFAULT}}");
   cfg.model.provider = toSentinel("{{MODEL_PROVIDER}}");
   cfg.display.language = manifest.language;
+  // 构建时注入的动态模型列表(2026-07-15 方案1):替代基础模板里的静态清单
+  if (aisaModels?.length) cfg.providers.aisa.models = [...aisaModels].sort();
 
   const overrideRaw = manifest.targets?.hermes?.config ?? {};
   const override = JSON.parse(toSentinel(JSON.stringify(overrideRaw)));
