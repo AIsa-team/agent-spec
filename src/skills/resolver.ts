@@ -1,4 +1,12 @@
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { AgentSpecError, type RemoteSkillRef } from "../schema/manifest.js";
+import { realGitRunner, type GitRunner } from "./git-runner.js";
+
+// Kept as a general HTTP dependency type for agent-delivery consumers.
+// Remote skill resolution itself uses GitRunner, not FetchLike.
+export type FetchLike = (url: string, init?: RequestInit) => Promise<Response>;
 
 export interface GitTreeEntry {
   mode: string;
@@ -7,6 +15,25 @@ export interface GitTreeEntry {
   size: number | null;
   path: string;
 }
+
+export interface ResolvedSkill extends RemoteSkillRef {
+  commit: string;
+  files: { path: string; content: Buffer }[];
+}
+
+export interface RemoteSkillLimits {
+  maxFiles: number;
+  maxFileBytes: number;
+  maxTotalBytes: number;
+  fetchTimeoutMs: number;
+}
+
+export const REMOTE_SKILL_LIMITS: RemoteSkillLimits = {
+  maxFiles: 1000,
+  maxFileBytes: 5 * 1024 * 1024,
+  maxTotalBytes: 20 * 1024 * 1024,
+  fetchTimeoutMs: 60_000,
+};
 
 export function parseLsTree(raw: Buffer): GitTreeEntry[] {
   const entries: GitTreeEntry[] = [];
@@ -28,64 +55,119 @@ export function parseLsTree(raw: Buffer): GitTreeEntry[] {
   return entries;
 }
 
-export interface ResolvedSkill {
-  repo: string; skill: string; ref: string; sha: string;
-  files: { path: string; content: string }[];
-}
-export type FetchLike = (url: string, init?: RequestInit) => Promise<Response>;
-
-function ghHeaders(): Record<string, string> {
-  const h: Record<string, string> = { "user-agent": "aisa-agent-spec" };
-  if (process.env.GITHUB_TOKEN) h.authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
-  return h;
+function safeUrl(value: string): string {
+  const url = new URL(value);
+  return `${url.protocol}//${url.host}${url.pathname}`;
 }
 
-async function getJson(fetchImpl: FetchLike, url: string): Promise<any> {
-  const res = await fetchImpl(url, { headers: ghHeaders() });
-  if (!res.ok) throw new AgentSpecError(`GitHub request failed (${res.status}): ${url}`);
-  return res.json();
+async function runGit(
+  git: GitRunner,
+  args: string[],
+  timeoutMs: number,
+  errorMessage: string,
+): Promise<Buffer> {
+  const result = await git(args, { timeoutMs });
+  if (result.code !== 0) throw new AgentSpecError(errorMessage);
+  return result.stdout;
+}
+
+async function openRepository(
+  root: string,
+  index: number,
+  remote: RemoteSkillRef,
+  git: GitRunner,
+  timeoutMs: number,
+): Promise<{ repoDir: string; commit: string }> {
+  const repoDir = join(root, `repo-${index}`);
+  const source = safeUrl(remote.url);
+  await runGit(git, ["init", "--bare", repoDir], timeoutMs,
+    `could not initialize temporary Git repository for ${source}`);
+  await runGit(git, ["fetch", "--depth=1", remote.url, remote.ref], timeoutMs,
+    `could not fetch ref "${remote.ref}" from ${source}`);
+  const rawCommit = await runGit(git, ["rev-parse", "FETCH_HEAD^{commit}"], timeoutMs,
+    `could not resolve ref "${remote.ref}" to a commit in ${source}`);
+  const commit = rawCommit.toString("utf8").trim();
+  if (!/^[0-9a-f]{40}$/.test(commit))
+    throw new AgentSpecError(`ref "${remote.ref}" did not resolve to a full commit in ${source}`);
+  return { repoDir, commit };
+}
+
+async function readSkill(
+  remote: RemoteSkillRef,
+  repo: { repoDir: string; commit: string },
+  git: GitRunner,
+  limits: RemoteSkillLimits,
+): Promise<ResolvedSkill> {
+  const source = safeUrl(remote.url);
+  const treeRaw = await runGit(git,
+    ["ls-tree", "-r", "-l", "-z", repo.commit, "--", remote.path],
+    limits.fetchTimeoutMs,
+    `could not inspect path "${remote.path}" in ${source}@${remote.ref}`);
+  const entries = parseLsTree(treeRaw);
+  if (entries.length === 0)
+    throw new AgentSpecError(`remote skill path "${remote.path}" not found in ${source}@${remote.ref}`);
+
+  for (const entry of entries) {
+    if (entry.type !== "blob" || !["100644", "100755"].includes(entry.mode))
+      throw new AgentSpecError(`unsupported git entry ${entry.mode} ${entry.type} at ${entry.path}`);
+  }
+
+  const skillMd = `${remote.path}/SKILL.md`;
+  if (!entries.some((entry) => entry.path === skillMd))
+    throw new AgentSpecError(`remote skill "${remote.name}" is missing SKILL.md at ${skillMd}`);
+  if (entries.length > limits.maxFiles)
+    throw new AgentSpecError(`remote skill "${remote.name}" has too many files (${entries.length} > ${limits.maxFiles})`);
+
+  let totalBytes = 0;
+  for (const entry of entries) {
+    if (entry.size === null || !Number.isSafeInteger(entry.size) || entry.size < 0)
+      throw new AgentSpecError(`remote skill "${remote.name}" has invalid file size at ${entry.path}`);
+    if (entry.size > limits.maxFileBytes)
+      throw new AgentSpecError(`remote skill "${remote.name}" file too large: ${entry.path}`);
+    totalBytes += entry.size;
+    if (totalBytes > limits.maxTotalBytes)
+      throw new AgentSpecError(`remote skill "${remote.name}" exceeds total size limit`);
+  }
+
+  const files = [] as { path: string; content: Buffer }[];
+  const prefix = `${remote.path}/`;
+  for (const entry of entries) {
+    if (!entry.path.startsWith(prefix))
+      throw new AgentSpecError(`git returned a path outside remote skill "${remote.name}"`);
+    const content = await runGit(git, ["show", `${repo.commit}:${entry.path}`],
+      limits.fetchTimeoutMs, `could not read ${entry.path} from ${source}@${remote.ref}`);
+    if (content.length !== entry.size)
+      throw new AgentSpecError(`remote skill file size changed while reading ${entry.path}`);
+    files.push({ path: entry.path.slice(prefix.length), content });
+  }
+  files.sort((a, b) => a.path < b.path ? -1 : a.path > b.path ? 1 : 0);
+
+  return { ...remote, commit: repo.commit, files };
 }
 
 export async function resolveSkills(
   refs: RemoteSkillRef[],
-  fetchImpl: FetchLike = fetch,
+  options: { git?: GitRunner; limits?: Partial<RemoteSkillLimits> } = {},
 ): Promise<ResolvedSkill[]> {
-  // 每个唯一 repo@ref 只解析一次 SHA + tree
-  const treeCache = new Map<string, { sha: string; paths: string[] }>();
+  if (refs.length === 0) return [];
+  const git = options.git ?? realGitRunner;
+  const limits = { ...REMOTE_SKILL_LIMITS, ...options.limits };
+  const root = await mkdtemp(join(tmpdir(), "agentspec-git-"));
+  const cache = new Map<string, Promise<{ repoDir: string; commit: string }>>();
 
-  async function repoTree(repo: string, ref: string) {
-    const key = `${repo}@${ref}`;
-    let cached = treeCache.get(key);
-    if (!cached) {
-      const commit = await getJson(fetchImpl,
-        `https://api.github.com/repos/${repo}/commits/${ref}`);
-      const sha: string = commit.sha;
-      if (!sha) throw new AgentSpecError(`could not resolve ref "${ref}" in ${repo}`);
-      const tree = await getJson(fetchImpl,
-        `https://api.github.com/repos/${repo}/git/trees/${sha}?recursive=1`);
-      const paths = (tree.tree as { path: string; type: string }[])
-        .filter((e) => e.type === "blob").map((e) => e.path);
-      cached = { sha, paths };
-      treeCache.set(key, cached);
+  try {
+    const resolved: ResolvedSkill[] = [];
+    for (const remote of refs) {
+      const key = `${new URL(remote.url).toString()}\0${remote.ref}`;
+      let repo = cache.get(key);
+      if (!repo) {
+        repo = openRepository(root, cache.size, remote, git, limits.fetchTimeoutMs);
+        cache.set(key, repo);
+      }
+      resolved.push(await readSkill(remote, await repo, git, limits));
     }
-    return cached;
+    return resolved;
+  } finally {
+    await rm(root, { recursive: true, force: true });
   }
-
-  const out: ResolvedSkill[] = [];
-  for (const r of refs) {
-    const { sha, paths } = await repoTree(r.repo, r.ref);
-    const prefix = `${r.skill}/`;
-    const skillPaths = paths.filter((p) => p.startsWith(prefix));
-    if (skillPaths.length === 0)
-      throw new AgentSpecError(`skill "${r.skill}" not found in ${r.repo}@${r.ref} (no files)`);
-    const files = await Promise.all(skillPaths.map(async (p) => {
-      const res = await fetchImpl(
-        `https://raw.githubusercontent.com/${r.repo}/${sha}/${p}`,
-        { headers: { "user-agent": "aisa-agent-spec" } });
-      if (!res.ok) throw new AgentSpecError(`failed to fetch ${p} (${res.status})`);
-      return { path: p.slice(prefix.length), content: await res.text() };
-    }));
-    out.push({ repo: r.repo, skill: r.skill, ref: r.ref, sha, files });
-  }
-  return out;
 }
