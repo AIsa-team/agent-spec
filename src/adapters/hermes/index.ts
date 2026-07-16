@@ -7,7 +7,11 @@ import { buildHermesCronJobs } from "./cron.js";
 import { buildEnvExample } from "../../envfile.js";
 import { createLock, serializeLock } from "../../lock.js";
 
-async function writeInto(outDir: string, relPath: string, content: string): Promise<void> {
+async function writeInto(
+  outDir: string,
+  relPath: string,
+  content: string | Uint8Array,
+): Promise<void> {
   const abs = join(outDir, relPath);
   await mkdir(dirname(abs), { recursive: true });
   await writeFile(abs, content);
@@ -45,7 +49,7 @@ export const hermesAdapter: Adapter = {
     }
     for (const s of resolvedSkills)
       for (const f of s.files)
-        await writeInto(outDir, join("skills", s.skill, f.path), f.content);
+        await writeInto(outDir, join("skills", s.name, f.path), f.content);
 
     for (const entry of project.assetEntries)
       await cp(join(project.root, "assets", entry), join(outDir, entry), { recursive: true, filter: copyFilter });

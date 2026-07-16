@@ -3,14 +3,20 @@ export const AGENTSPEC_VERSION = "agentspec/v1";
 export {
   parseManifest,
   AgentSpecError,
-  DEFAULT_SKILLS_REPO,
   type AgentManifest,
-  type AisaSkillRef,
+  type RemoteSkillRef,
   type EnvVarDecl,
 } from "./schema/manifest.js";
 export { parseCronJobs, type CronJob } from "./schema/cron.js";
 export { loadAgentProject, type AgentProject } from "./loader.js";
-export { resolveSkills, type ResolvedSkill, type FetchLike } from "./skills/resolver.js";
+export {
+  resolveSkills,
+  REMOTE_SKILL_LIMITS,
+  type ResolvedSkill,
+  type RemoteSkillLimits,
+  type FetchLike,
+} from "./skills/resolver.js";
+export { realGitRunner, type GitRunner, type GitResult } from "./skills/git-runner.js";
 export { createLock, serializeLock, parseLock, type AgentLock } from "./lock.js";
 export {
   getAdapter,

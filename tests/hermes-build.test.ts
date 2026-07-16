@@ -46,11 +46,16 @@ setup:
 }
 
 const resolved = [{
-  repo: "AIsa-team/agent-skills", skill: "twitter-post", ref: "v1.2.0",
-  sha: "b".repeat(40),
+  type: "git" as const,
+  url: "https://github.com/example/shared-skills.git",
+  path: "packages/twitter-post",
+  name: "twitter-post",
+  ref: "v1.2.0",
+  commit: "b".repeat(40),
   files: [
-    { path: "SKILL.md", content: "---\nname: twitter-post\n---" },
-    { path: "scripts/post.py", content: "print('post')" },
+    { path: "SKILL.md", content: Buffer.from("---\nname: twitter-post\n---") },
+    { path: "scripts/post.py", content: Buffer.from("print('post')") },
+    { path: "assets/icon.bin", content: Buffer.from([0, 255, 1, 2]) },
   ],
 }];
 
@@ -70,12 +75,18 @@ describe("hermesAdapter.build", () => {
       "skills/demo/hello/SKILL.md",
       "skills/twitter-post/SKILL.md",
       "skills/twitter-post/scripts/post.py",
+      "skills/twitter-post/assets/icon.bin",
       "portfolio/engine.py",
       "requirements/dsa.txt",
       "agent.json",
       "agent.lock.json",
       ".env.example",
     ]) expect(existsSync(join(out, f)), f).toBe(true);
+  });
+
+  it("preserves remote binary files byte-for-byte", () => {
+    expect(readFileSync(join(out, "skills/twitter-post/assets/icon.bin")))
+      .toEqual(Buffer.from([0, 255, 1, 2]));
   });
 
   it("excludes __pycache__ / .pyc / .DS_Store junk from the bundle", () => {
@@ -93,9 +104,10 @@ describe("hermesAdapter.build", () => {
     expect(jobs.jobs[0].model).toBe("{{MODEL_DEFAULT}}");
   });
 
-  it("lockfile pins the resolved sha", () => {
+  it("lockfile pins the resolved commit", () => {
     const lock = JSON.parse(readFileSync(join(out, "agent.lock.json"), "utf8"));
-    expect(lock.skills[0].sha).toBe("b".repeat(40));
+    expect(lock.skills[0].commit).toBe("b".repeat(40));
+    expect(lock.skills[0]).not.toHaveProperty("sha");
   });
 });
 

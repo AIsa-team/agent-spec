@@ -10,14 +10,26 @@ version: 1.0.0
 description: d
 `);
 const resolved = [{
-  repo: "AIsa-team/agent-skills", skill: "twitter-post", ref: "v1.2.0",
-  sha: "a".repeat(40), files: [],
+  type: "git" as const,
+  url: "https://github.com/example/shared-skills.git",
+  path: "packages/twitter-post",
+  name: "twitter-post",
+  ref: "v1.2.0",
+  commit: "a".repeat(40),
+  files: [],
 }];
 
 describe("lockfile", () => {
   it("creates, serializes, and round-trips", () => {
     const lock = createLock(manifest, resolved);
-    expect(lock.skills[0].sha).toBe("a".repeat(40));
+    expect(lock.skills[0]).toEqual({
+      type: "git",
+      url: "https://github.com/example/shared-skills.git",
+      path: "packages/twitter-post",
+      name: "twitter-post",
+      ref: "v1.2.0",
+      commit: "a".repeat(40),
+    });
     expect(lock.skills[0]).not.toHaveProperty("files");
     const text = serializeLock(lock);
     expect(text.endsWith("\n")).toBe(true);
@@ -25,12 +37,16 @@ describe("lockfile", () => {
   });
 
   it("serialization is deterministic regardless of skill order", () => {
-    const b = { ...resolved[0], skill: "aaa-first" };
+    const b = { ...resolved[0], name: "aaa-first", path: "packages/aaa-first" };
     expect(serializeLock(createLock(manifest, [resolved[0], b])))
       .toBe(serializeLock(createLock(manifest, [b, resolved[0]])));
   });
 
   it("parseLock rejects garbage", () => {
     expect(() => parseLock("{}")).toThrow();
+    expect(() => parseLock(JSON.stringify({
+      spec: "agentspec-lock/v1", agent: "cio", version: "1.0.0",
+      skills: [{ repo: "old/repo", skill: "old", ref: "main", sha: "a".repeat(40) }],
+    }))).toThrow();
   });
 });

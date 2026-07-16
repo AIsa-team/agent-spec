@@ -7,17 +7,26 @@ const lockSchema = z.object({
   agent: z.string(),
   version: z.string(),
   skills: z.array(z.object({
-    repo: z.string(), skill: z.string(), ref: z.string(),
-    sha: z.string().regex(/^[0-9a-f]{40}$/),
-  })),
-});
+    type: z.literal("git"),
+    url: z.string(),
+    path: z.string(),
+    name: z.string(),
+    ref: z.string(),
+    commit: z.string().regex(/^[0-9a-f]{40}$/),
+  }).strict()),
+}).strict();
 
 export type AgentLock = z.infer<typeof lockSchema>;
 
 export function createLock(manifest: AgentManifest, resolved: ResolvedSkill[]): AgentLock {
   const skills = resolved
-    .map(({ repo, skill, ref, sha }) => ({ repo, skill, ref, sha }))
-    .sort((a, b) => `${a.repo}/${a.skill}`.localeCompare(`${b.repo}/${b.skill}`));
+    .map(({ type, url, path, name, ref, commit }) =>
+      ({ type, url, path, name, ref, commit }))
+    .sort((a, b) => {
+      const left = `${a.name}\0${a.url}\0${a.path}`;
+      const right = `${b.name}\0${b.url}\0${b.path}`;
+      return left < right ? -1 : left > right ? 1 : 0;
+    });
   return { spec: "agentspec-lock/v1", agent: manifest.id, version: manifest.version, skills };
 }
 
