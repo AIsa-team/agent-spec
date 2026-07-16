@@ -12,7 +12,7 @@ describe("Git runner primitives", () => {
 
   it("parses NUL-delimited ls-tree output without losing paths", () => {
     const raw = Buffer.from(
-      `100644 blob ${"a".repeat(40)} 42\tpackages/x/SKILL.md\0`
+      `100644 blob ${"a".repeat(40)}     42\tpackages/x/SKILL.md\0`
       + `100755 blob ${"b".repeat(40)} 12\tpackages/x/scripts/run.sh\0`,
     );
 

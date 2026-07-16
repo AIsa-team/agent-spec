@@ -27,11 +27,13 @@ function lsTree(files: TreeFile[]): Buffer {
 function fakeGit(
   trees: Record<string, TreeFile[]>,
   opts: { fetchFails?: boolean } = {},
-): GitRunner & { calls: string[][]; repoDirs: string[] } {
+): GitRunner & { calls: string[][]; repoDirs: string[]; workingDirs: (string | undefined)[] } {
   const calls: string[][] = [];
   const repoDirs: string[] = [];
-  const runner: GitRunner = async (args) => {
+  const workingDirs: (string | undefined)[] = [];
+  const runner: GitRunner = async (args, options) => {
     calls.push(args);
+    workingDirs.push(options.cwd);
     if (args[0] === "init") {
       const repoDir = args.at(-1)!;
       repoDirs.push(repoDir);
@@ -60,7 +62,7 @@ function fakeGit(
     }
     return { code: 1, stdout: Buffer.alloc(0), stderr: `unexpected git ${args.join(" ")}` };
   };
-  return Object.assign(runner, { calls, repoDirs });
+  return Object.assign(runner, { calls, repoDirs, workingDirs });
 }
 
 function ref(path: string, name = path.split("/").at(-1)!): RemoteSkillRef {
@@ -97,6 +99,9 @@ describe("resolveSkills", () => {
     ]);
     expect(resolved[0].files.find((file) => file.path === "assets/icon.bin")?.content)
       .toEqual(Buffer.from([0, 255, 1, 2]));
+    expect(git.calls.map((args, index) => ({ command: args[0], cwd: git.workingDirs[index] }))
+      .filter(({ command }) => command !== "init")
+      .every(({ cwd }) => cwd === git.repoDirs[0])).toBe(true);
     expect(git.repoDirs.every((dir) => !existsSync(dir))).toBe(true);
   });
 

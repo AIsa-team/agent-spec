@@ -42,7 +42,7 @@ export function parseLsTree(raw: Buffer): GitTreeEntry[] {
     const tab = record.indexOf("\t");
     const metadata = tab === -1 ? record : record.slice(0, tab);
     const path = tab === -1 ? "" : record.slice(tab + 1);
-    const match = /^(\d{6}) ([a-z]+) ([0-9a-f]{40}) (\d+|-)$/i.exec(metadata);
+    const match = /^(\d{6}) ([a-z]+) ([0-9a-f]{40}) +(\d+|-)$/i.exec(metadata);
     if (!match || !path) throw new AgentSpecError(`invalid git ls-tree record: ${metadata}`);
     entries.push({
       mode: match[1],
@@ -65,8 +65,9 @@ async function runGit(
   args: string[],
   timeoutMs: number,
   errorMessage: string,
+  cwd?: string,
 ): Promise<Buffer> {
-  const result = await git(args, { timeoutMs });
+  const result = await git(args, { cwd, timeoutMs });
   if (result.code !== 0) throw new AgentSpecError(errorMessage);
   return result.stdout;
 }
@@ -83,9 +84,9 @@ async function openRepository(
   await runGit(git, ["init", "--bare", repoDir], timeoutMs,
     `could not initialize temporary Git repository for ${source}`);
   await runGit(git, ["fetch", "--depth=1", remote.url, remote.ref], timeoutMs,
-    `could not fetch ref "${remote.ref}" from ${source}`);
+    `could not fetch ref "${remote.ref}" from ${source}`, repoDir);
   const rawCommit = await runGit(git, ["rev-parse", "FETCH_HEAD^{commit}"], timeoutMs,
-    `could not resolve ref "${remote.ref}" to a commit in ${source}`);
+    `could not resolve ref "${remote.ref}" to a commit in ${source}`, repoDir);
   const commit = rawCommit.toString("utf8").trim();
   if (!/^[0-9a-f]{40}$/.test(commit))
     throw new AgentSpecError(`ref "${remote.ref}" did not resolve to a full commit in ${source}`);
@@ -102,7 +103,8 @@ async function readSkill(
   const treeRaw = await runGit(git,
     ["ls-tree", "-r", "-l", "-z", repo.commit, "--", remote.path],
     limits.fetchTimeoutMs,
-    `could not inspect path "${remote.path}" in ${source}@${remote.ref}`);
+    `could not inspect path "${remote.path}" in ${source}@${remote.ref}`,
+    repo.repoDir);
   const entries = parseLsTree(treeRaw);
   if (entries.length === 0)
     throw new AgentSpecError(`remote skill path "${remote.path}" not found in ${source}@${remote.ref}`);
@@ -135,7 +137,8 @@ async function readSkill(
     if (!entry.path.startsWith(prefix))
       throw new AgentSpecError(`git returned a path outside remote skill "${remote.name}"`);
     const content = await runGit(git, ["show", `${repo.commit}:${entry.path}`],
-      limits.fetchTimeoutMs, `could not read ${entry.path} from ${source}@${remote.ref}`);
+      limits.fetchTimeoutMs, `could not read ${entry.path} from ${source}@${remote.ref}`,
+      repo.repoDir);
     if (content.length !== entry.size)
       throw new AgentSpecError(`remote skill file size changed while reading ${entry.path}`);
     files.push({ path: entry.path.slice(prefix.length), content });
