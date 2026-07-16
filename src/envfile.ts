@@ -6,7 +6,10 @@ export function buildEnvExample(m: AgentManifest): string {
     `# Copy to .env and fill in the values. NEVER commit real keys.`,
     ``,
     `PROFILE_ID=${m.id}`,
-    `HERMES_HOME=~/.hermes`,
+    // No HERMES_HOME here: hermes loads the profile's .env with override
+    // semantics, so shipping it would clobber the --profile HERMES_HOME
+    // switch (and dotenv never expands the tilde). render.sh has its own
+    // ~/.hermes default.
     `MODEL_DEFAULT=${m.models.default}`,
     `MODEL_PROVIDER=${m.models.provider}`,
     ``,

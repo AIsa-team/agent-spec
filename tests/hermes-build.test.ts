@@ -124,4 +124,9 @@ describe("buildEnvExample", () => {
     expect(env).toMatch(/# FINNHUB_API_KEY=/);
     expect(env).toMatch(/degrade: yahoo only/i);
   });
+
+  it("never emits HERMES_HOME — hermes loads profile .env with override semantics, so the line would clobber the --profile switch", () => {
+    const m = parseManifest(readFileSync(join(makeFixture(), "agent.yaml"), "utf8"));
+    expect(buildEnvExample(m)).not.toMatch(/^HERMES_HOME=/m);
+  });
 });
