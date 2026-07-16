@@ -1,9 +1,8 @@
 import { z } from "zod";
 import { parse as parseYaml } from "yaml";
+import { posix } from "node:path";
 
 export class AgentSpecError extends Error {}
-
-export const DEFAULT_SKILLS_REPO = "AIsa-team/agent-skills";
 
 const slug = z.string().regex(/^[a-z0-9][a-z0-9-]*$/, "must be a lowercase slug");
 const semver = z.string().regex(/^\d+\.\d+\.\d+$/, "must be semver x.y.z");
@@ -14,10 +13,66 @@ const envVarDecl = z.object({
   degrade: z.string().optional(),
 });
 
-const aisaSkillRef = z.object({
-  repo: z.string().regex(/^[\w.-]+\/[\w.-]+$/).default(DEFAULT_SKILLS_REPO),
-  skill: z.string().min(1),
-  ref: z.string().min(1).default("main"),
+function validHttpsGitUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:"
+      && url.hostname.length > 0
+      && url.pathname !== "/"
+      && !url.username
+      && !url.password
+      && !url.search
+      && !url.hash;
+  } catch {
+    return false;
+  }
+}
+
+function validRemotePath(value: string): boolean {
+  if (!value || value.startsWith("/") || value.includes("\\")) return false;
+  return value.split("/").every((part) =>
+    part.length > 0 && part !== "." && part !== ".." && part !== ".git");
+}
+
+function validGitRef(value: string): boolean {
+  return value.length > 0
+    && !value.startsWith("-")
+    && !/[\u0000-\u0020\u007f]/.test(value)
+    && !value.includes("..")
+    && !value.includes("@{")
+    && !value.includes("\\");
+}
+
+const remoteSkillRef = z.object({
+  type: z.literal("git").default("git"),
+  url: z.string().refine(validHttpsGitUrl,
+    "must be a public HTTPS Git URL without credentials, query, or fragment"),
+  path: z.string().refine(validRemotePath, "must be a safe relative POSIX path"),
+  name: slug.optional(),
+  ref: z.string().refine(validGitRef, "must be a safe Git ref").default("main"),
+}).strict().transform((remote) => ({
+  ...remote,
+  name: remote.name ?? posix.basename(remote.path),
+}));
+
+const skillsSchema = z.object({
+  inline: z.array(z.string().min(1)).default([]),
+  remote: z.array(remoteSkillRef).default([]),
+}).strict().superRefine((skills, ctx) => {
+  const names = new Map<string, string>();
+  for (const name of skills.inline) names.set(name, `inline:${name}`);
+  for (const [index, remote] of skills.remote.entries()) {
+    const previous = names.get(remote.name);
+    if (previous) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["remote", index, "name"],
+        message: `skill output name collision "${remote.name}" with ${previous}`,
+      });
+    } else {
+      names.set(remote.name, `remote:${index}`);
+    }
+  }
 });
 
 const pythonSetup = z.object({
@@ -44,10 +99,7 @@ const manifestSchema = z.object({
     required: z.array(envVarDecl).default([]),
     optional: z.array(envVarDecl).default([]),
   }).default({ required: [], optional: [] }),
-  skills: z.object({
-    inline: z.array(z.string().min(1)).default([]),
-    aisa: z.array(aisaSkillRef).default([]),
-  }).default({ inline: [], aisa: [] }),
+  skills: skillsSchema.default({ inline: [], remote: [] }),
   cron: z.string().optional(),
   setup: z.object({
     python: z.array(pythonSetup).default([]),
@@ -64,7 +116,7 @@ const manifestSchema = z.object({
 });
 
 export type AgentManifest = z.infer<typeof manifestSchema>;
-export type AisaSkillRef = z.infer<typeof aisaSkillRef>;
+export type RemoteSkillRef = z.infer<typeof remoteSkillRef>;
 export type EnvVarDecl = z.infer<typeof envVarDecl>;
 export type PythonSetup = z.infer<typeof pythonSetup>;
 

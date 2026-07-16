@@ -23,9 +23,11 @@ env:
 skills:
   inline:
     - finance/portfolio-report
-  aisa:
-    - repo: AIsa-team/agent-skills
-      skill: twitter-post
+  remote:
+    - type: git
+      url: https://github.com/AISA-skills/marketing-skills.git
+      path: packages/skills/twitter-post
+      name: twitter-post
       ref: v1.2.0
 cron: cron/jobs.yaml
 update:
@@ -38,13 +40,17 @@ describe("parseManifest", () => {
     const m = parseManifest(VALID);
     expect(m.id).toBe("cio");
     expect(m.models.default).toBe("deepseek-v4-pro");
-    expect(m.skills.aisa[0]).toEqual({
-      repo: "AIsa-team/agent-skills", skill: "twitter-post", ref: "v1.2.0",
+    expect(m.skills.remote[0]).toEqual({
+      type: "git",
+      url: "https://github.com/AISA-skills/marketing-skills.git",
+      path: "packages/skills/twitter-post",
+      name: "twitter-post",
+      ref: "v1.2.0",
     });
     expect(m.env.optional[0].degrade).toBe("skip fallback, Yahoo only");
   });
 
-  it("defaults: skills 缺省为空数组, update 缺省 latest/auto=true, aisa ref 缺省 main, repo 缺省官方库", () => {
+  it("defaults remote type/ref/name and other manifest fields", () => {
     const m = parseManifest(`
 spec: agentspec/v1
 id: mini
@@ -52,14 +58,95 @@ name: Mini
 version: 0.0.1
 description: d
 skills:
-  aisa:
-    - skill: hello
+  remote:
+    - url: https://gitlab.example.org/agents/shared-skills.git
+      path: research/hello
 `);
     expect(m.skills.inline).toEqual([]);
-    expect(m.skills.aisa[0]).toEqual({ repo: "AIsa-team/agent-skills", skill: "hello", ref: "main" });
+    expect(m.skills.remote[0]).toEqual({
+      type: "git",
+      url: "https://gitlab.example.org/agents/shared-skills.git",
+      path: "research/hello",
+      name: "hello",
+      ref: "main",
+    });
     expect(m.update).toEqual({ channel: "latest", auto: true });
     expect(m.language).toBe("en");
     expect(m.env.required).toEqual([]);
+  });
+
+  it("rejects the removed skills.aisa field", () => {
+    expect(() => parseManifest(`
+spec: agentspec/v1
+id: old
+name: Old
+version: 0.0.1
+description: d
+skills:
+  aisa: []
+`)).toThrow(/skills.*aisa|unrecognized/i);
+  });
+
+  it.each([
+    "git@github.com:org/repo.git",
+    "ssh://git@github.com/org/repo.git",
+    "file:///tmp/repo",
+    "https://user:token@example.com/repo.git",
+    "https://example.com/repo.git?token=x",
+    "https://example.com/repo.git#main",
+  ])("rejects unsafe remote URL %s", (url) => {
+    expect(() => parseManifest(`
+spec: agentspec/v1
+id: unsafe
+name: Unsafe
+version: 0.0.1
+description: d
+skills:
+  remote:
+    - url: ${url}
+      path: hello
+`)).toThrow(/url/i);
+  });
+
+  it.each(["/root/skill", "../skill", "a/../skill", ".git/skill", "a\\\\b"])
+  ("rejects unsafe remote path %s", (path) => {
+    expect(() => parseManifest(`
+spec: agentspec/v1
+id: unsafe-path
+name: Unsafe Path
+version: 0.0.1
+description: d
+skills:
+  remote:
+    - url: https://example.com/repo.git
+      path: '${path}'
+`)).toThrow(/path/i);
+  });
+
+  it("rejects remote/remote and inline/remote output-name collisions", () => {
+    expect(() => parseManifest(`
+spec: agentspec/v1
+id: collision
+name: Collision
+version: 0.0.1
+description: d
+skills:
+  inline: [hello]
+  remote:
+    - { url: https://example.com/a.git, path: skills/hello }
+`)).toThrow(/collision/i);
+
+    expect(() => parseManifest(`
+spec: agentspec/v1
+id: collision
+name: Collision
+version: 0.0.1
+description: d
+skills:
+  remote:
+    - { url: https://example.com/a.git, path: skills/hello }
+    - { url: https://example.com/b.git, path: other/hello }
+`)).toThrow(/collision/i);
   });
 
   it("parses setup.python with defaults and rejects bad env names", () => {
