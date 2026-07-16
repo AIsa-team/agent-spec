@@ -1,4 +1,32 @@
-import { AgentSpecError, type AisaSkillRef } from "../schema/manifest.js";
+import { AgentSpecError, type RemoteSkillRef } from "../schema/manifest.js";
+
+export interface GitTreeEntry {
+  mode: string;
+  type: string;
+  object: string;
+  size: number | null;
+  path: string;
+}
+
+export function parseLsTree(raw: Buffer): GitTreeEntry[] {
+  const entries: GitTreeEntry[] = [];
+  for (const record of raw.toString("utf8").split("\0")) {
+    if (!record) continue;
+    const tab = record.indexOf("\t");
+    const metadata = tab === -1 ? record : record.slice(0, tab);
+    const path = tab === -1 ? "" : record.slice(tab + 1);
+    const match = /^(\d{6}) ([a-z]+) ([0-9a-f]{40}) (\d+|-)$/i.exec(metadata);
+    if (!match || !path) throw new AgentSpecError(`invalid git ls-tree record: ${metadata}`);
+    entries.push({
+      mode: match[1],
+      type: match[2],
+      object: match[3],
+      size: match[4] === "-" ? null : Number(match[4]),
+      path,
+    });
+  }
+  return entries;
+}
 
 export interface ResolvedSkill {
   repo: string; skill: string; ref: string; sha: string;
@@ -19,7 +47,7 @@ async function getJson(fetchImpl: FetchLike, url: string): Promise<any> {
 }
 
 export async function resolveSkills(
-  refs: AisaSkillRef[],
+  refs: RemoteSkillRef[],
   fetchImpl: FetchLike = fetch,
 ): Promise<ResolvedSkill[]> {
   // 每个唯一 repo@ref 只解析一次 SHA + tree
