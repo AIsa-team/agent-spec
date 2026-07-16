@@ -34,6 +34,8 @@ setup:
   writeFileSync(join(root, "soul", "02-rules.md"), "# Rules");
   mkdirSync(join(root, "skills", "demo", "hello"), { recursive: true });
   writeFileSync(join(root, "skills", "demo", "hello", "SKILL.md"), "---\nname: hello\n---");
+  mkdirSync(join(root, "skills", "demo", "hello", "references"), { recursive: true });
+  writeFileSync(join(root, "skills", "demo", "hello", "references", "guide.md"), "guide");
   mkdirSync(join(root, "cron"));
   writeFileSync(join(root, "cron", "jobs.yaml"),
     'jobs:\n  - { id: tick, schedule: "0 9 * * *", prompt: tick, model: default }\n');
@@ -73,6 +75,7 @@ describe("hermesAdapter.build", () => {
       "profile/config.template.yaml",
       "profile/cron/jobs.template.json",
       "skills/demo/hello/SKILL.md",
+      "skills/demo/hello/references/guide.md",
       "skills/twitter-post/SKILL.md",
       "skills/twitter-post/scripts/post.py",
       "skills/twitter-post/assets/icon.bin",

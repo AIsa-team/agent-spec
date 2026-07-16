@@ -39,12 +39,10 @@ describe("index target extensions (2026-07-15)", () => {
       manifest: m, repo: "r", target: "hermes", url: "u", sha256: "s",
       assets: { installMd: "u/INSTALL-hermes.md", installSh: "u/install-hermes.sh", guidePrompt: "u/guide-prompt-hermes.txt" },
     });
-    idx = setIndexTemplate(idx, { id: "cio", version: "1.1.0", target: "hermes", templateName: "hermes-cio-dev", dev: true });
-    idx = setIndexTemplate(idx, { id: "cio", version: "1.1.0", target: "hermes", templateName: "hermes-cio" });
+    idx = setIndexTemplate(idx, { id: "cio", version: "1.1.0", target: "hermes", templateName: "hermes-cio-1-1-0" });
     const t = idx.agents.cio.versions["1.1.0"].targets.hermes;
     expect(t.installMd).toBe("u/INSTALL-hermes.md");
-    expect(t.e2bTemplateDev).toBe("hermes-cio-dev");
-    expect(t.e2bTemplate).toBe("hermes-cio");
+    expect(t.e2bTemplate).toBe("hermes-cio-1-1-0");
     expect(parseIndex(serializeIndex(idx))).toEqual(idx);   // 扩展字段过 schema 校验
   });
 

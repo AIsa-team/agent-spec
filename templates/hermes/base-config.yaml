@@ -404,6 +404,7 @@ goals:
 skills:
   external_dirs:
   - ~/.hermes/skills/
+  - "{{PROFILE_DIR}}/.agentspec-content/current/skills"
   template_vars: true
   inline_shell: false
   inline_shell_timeout: 10
