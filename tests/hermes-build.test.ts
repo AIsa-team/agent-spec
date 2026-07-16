@@ -115,18 +115,23 @@ describe("hermesAdapter.build", () => {
 });
 
 describe("buildEnvExample", () => {
-  it("declares defaults, required blank, optional commented", () => {
+  it("declares required blank, optional commented", () => {
     const m = parseManifest(readFileSync(join(makeFixture(), "agent.yaml"), "utf8"));
     const env = buildEnvExample(m);
-    expect(env).toContain("PROFILE_ID=cio");
-    expect(env).toContain("MODEL_DEFAULT=deepseek-v4-pro");
     expect(env).toContain("AISA_API_KEY=");
     expect(env).toMatch(/# FINNHUB_API_KEY=/);
     expect(env).toMatch(/degrade: yahoo only/i);
   });
 
-  it("never emits HERMES_HOME — hermes loads profile .env with override semantics, so the line would clobber the --profile switch", () => {
+  // .env 是用户密钥文件:系统变量(HERMES_HOME/PROFILE_ID/MODEL_*)不得进入,
+  // 否则升级保留 .env 会把它们永久冻结(HERMES_HOME 还会覆盖 --profile 切换)。
+  // 系统默认由制品内 agent.json 提供,render.sh 自取。
+  it("emits only user keys — no system vars (HERMES_HOME, PROFILE_ID, MODEL_*)", () => {
     const m = parseManifest(readFileSync(join(makeFixture(), "agent.yaml"), "utf8"));
-    expect(buildEnvExample(m)).not.toMatch(/^HERMES_HOME=/m);
+    const env = buildEnvExample(m);
+    expect(env).not.toMatch(/^HERMES_HOME=/m);
+    expect(env).not.toMatch(/^PROFILE_ID=/m);
+    expect(env).not.toMatch(/^MODEL_DEFAULT=/m);
+    expect(env).not.toMatch(/^MODEL_PROVIDER=/m);
   });
 });

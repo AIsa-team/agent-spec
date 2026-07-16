@@ -1,17 +1,15 @@
 import type { AgentManifest } from "./schema/manifest.js";
 
 export function buildEnvExample(m: AgentManifest): string {
+  // .env is user-owned: keys only. System vars (HERMES_HOME, PROFILE_ID,
+  // MODEL_*) must never be seeded here — updates preserve the user's .env,
+  // which would freeze them forever, and hermes loads .env with override
+  // semantics (HERMES_HOME in it clobbers the --profile switch). System
+  // defaults travel with the artifact in agent.json; render.sh reads them
+  // from there.
   const lines: string[] = [
-    `# ${m.name} — environment for the hermes profile (rendered at install time)`,
+    `# ${m.name} — user environment for the hermes profile (keys only)`,
     `# Copy to .env and fill in the values. NEVER commit real keys.`,
-    ``,
-    `PROFILE_ID=${m.id}`,
-    // No HERMES_HOME here: hermes loads the profile's .env with override
-    // semantics, so shipping it would clobber the --profile HERMES_HOME
-    // switch (and dotenv never expands the tilde). render.sh has its own
-    // ~/.hermes default.
-    `MODEL_DEFAULT=${m.models.default}`,
-    `MODEL_PROVIDER=${m.models.provider}`,
     ``,
   ];
   if (m.env.required.length) lines.push(`# ── required ──`);
