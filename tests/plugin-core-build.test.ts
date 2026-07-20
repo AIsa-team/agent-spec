@@ -92,6 +92,39 @@ describe("buildPluginTree", () => {
   });
 });
 
+describe("buildPluginTree env discovery across files", () => {
+  // 回归:SKILL.md 按字典序排在 utils.py 之前,若边渲染边写 SKILL.md,
+  // utils.py 里才出现的 {{API_TOKEN}} 会在写盘时被漏掉 —— 整 skill 必须先渲染完再写。
+  function makeOrderFixture(): string {
+    const root = mkdtempSync(join(tmpdir(), "agentspec-pcorder-"));
+    writeFileSync(join(root, "agent.yaml"), `
+spec: agentspec/v1
+id: cio
+name: Neo CIO
+version: 1.0.0
+description: AI CIO
+skills:
+  inline: [order/late-env]
+`);
+    mkdirSync(join(root, "skills", "order", "late-env"), { recursive: true });
+    writeFileSync(join(root, "skills", "order", "late-env", "SKILL.md"),
+      "---\nname: late-env\n---\nNo template refs here.");
+    writeFileSync(join(root, "skills", "order", "late-env", "utils.py"),
+      "TOKEN = '{{API_TOKEN}}'\n");
+    return root;
+  }
+
+  it("includes env vars discovered in files that sort after SKILL.md", async () => {
+    const project = await loadAgentProject(makeOrderFixture());
+    const out = mkdtempSync(join(tmpdir(), "agentspec-pcorderout-"));
+    const { runtimeEnvVars } = await buildPluginTree(
+      { project, resolvedSkills: [] }, out, "${CLAUDE_PLUGIN_ROOT}");
+    expect(runtimeEnvVars).toContain("API_TOKEN");
+    expect(readFileSync(join(out, "skills/order/late-env/SKILL.md"), "utf8"))
+      .toContain("API_TOKEN");
+  });
+});
+
 describe("pluginMeta", () => {
   it("derives name/version/description from the manifest", () => {
     const m = parseManifest(

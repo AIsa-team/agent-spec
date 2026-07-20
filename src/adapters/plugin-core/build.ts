@@ -56,18 +56,28 @@ export async function buildPluginTree(
     const envNames = new Set<string>(
       declaredEnv.filter((n) => new RegExp(`\\b${n}\\b`).test(rawText)));
 
+    // Pass 1: 渲染全部文件到内存,先把整个 skill 的 runtimeEnvVars 收集齐 ——
+    // SKILL.md 可能按字典序排在其他模板文件(如 utils.py)之前,若边渲染边写
+    // SKILL.md 就会漏掉后处理文件才暴露出的 env,导致写盘内容与返回值不一致。
+    const rendered: { path: string; content: Buffer; text?: string }[] = [];
     for (const f of skill.files) {
-      const dst = join(outDir, "skills", skill.name, f.path);
-      await mkdir(dirname(dst), { recursive: true });
-      if (!TEXT_EXTS.has(extname(f.path))) { await writeFile(dst, f.content); continue; }
+      if (!TEXT_EXTS.has(extname(f.path))) { rendered.push({ path: f.path, content: f.content }); continue; }
       const r = renderPluginText(f.content.toString("utf8"), vars);
       r.runtimeEnvVars.forEach((n) => { allRuntime.add(n); envNames.add(n); });
-      let text = r.text;
+      rendered.push({ path: f.path, content: f.content, text: r.text });
+    }
+
+    // Pass 2: envNames 已经是整个 skill 的最终集合,再注入并写盘。
+    for (const f of rendered) {
+      const dst = join(outDir, "skills", skill.name, f.path);
+      await mkdir(dirname(dst), { recursive: true });
+      if (f.text === undefined) { await writeFile(dst, f.content); continue; }
+      let text = f.text;
       if (f.path === "SKILL.md") {
         // 注入顺序约定:bootstrap 最终在最上(先能跑,再查 key)。
         // envCheckBlock 先插(离 frontmatter 最近),bootstrap 后插会顶到它上面。
         if (envNames.size) text = injectAfterFrontmatter(text, envCheckBlock([...envNames].sort(), m));
-        for (const s of venvSetups.reverse())
+        for (const s of [...venvSetups].reverse())
           text = injectAfterFrontmatter(text, venvBootstrapBlock(s, pluginRoot));
       }
       await writeFile(dst, text);
