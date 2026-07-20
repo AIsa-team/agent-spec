@@ -25,7 +25,9 @@ export const codexPluginAdapter: Adapter = {
     await writeInto(outDir, "skills/soul/SKILL.md", [
       "---",
       "name: soul",
-      `description: "${m.name} core identity and operating rules. ALWAYS apply this skill: load it at the start of EVERY conversation before any other skill."`,
+      // JSON.stringify escaping is a subset of YAML double-quoted scalar escaping,
+      // so a raw m.name (containing " or \) can't corrupt the frontmatter — mirrors claude-plugin/index.ts.
+      `description: ${JSON.stringify(`${m.name} core identity and operating rules. ALWAYS apply this skill: load it at the start of EVERY conversation before any other skill.`)}`,
       "---",
       "", soul, "",
     ].join("\n"));

@@ -6,12 +6,12 @@ import { loadAgentProject } from "../src/loader.js";
 import { codexPluginAdapter } from "../src/adapters/codex-plugin/index.js";
 import { getAdapter } from "../src/adapters/adapter.js";
 
-function makeFixture(): string {
+function makeFixture(name = "Neo CIO"): string {
   const root = mkdtempSync(join(tmpdir(), "agentspec-xp-"));
   writeFileSync(join(root, "agent.yaml"), `
 spec: agentspec/v1
 id: cio
-name: Neo CIO
+name: ${JSON.stringify(name)}
 version: 1.0.0
 description: AI CIO
 skills:
@@ -51,5 +51,23 @@ describe("codexPluginAdapter.build", () => {
     expect(md).toContain("# Identity");
     expect(md).toContain("${PLUGIN_ROOT}/skills");
     expect(md).not.toMatch(/\{\{/);
+  });
+});
+
+describe("codexPluginAdapter.build — manifest name with quotes", () => {
+  // Guards against raw interpolation of m.name into the hand-built YAML frontmatter:
+  // a name containing " or \ must not corrupt the description line.
+  it("JSON-encodes the description so a quoted name stays parseable", async () => {
+    const project = await loadAgentProject(makeFixture('Neo "CIO"'));
+    const out = mkdtempSync(join(tmpdir(), "agentspec-xpout-quote-"));
+    await codexPluginAdapter.build({ project, resolvedSkills: [] }, out);
+
+    const md = readFileSync(join(out, "skills/soul/SKILL.md"), "utf8");
+    expect(md).toMatch(/^---\nname: soul\n/);
+    const descLine = md.split("\n").find((l) => l.startsWith("description: "));
+    const expected = JSON.stringify(
+      'Neo "CIO" core identity and operating rules. ALWAYS apply this skill: load it at the start of EVERY conversation before any other skill.',
+    );
+    expect(descLine).toBe(`description: ${expected}`);
   });
 });
