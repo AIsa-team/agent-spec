@@ -11,6 +11,9 @@ const envVarDecl = z.object({
   name: z.string().regex(/^[A-Z][A-Z0-9_]*$/),
   description: z.string(),
   degrade: z.string().optional(),
+  // key 申请入口(2026-07-20):plugin 的 env 引导块用它把"缺 key"变成开通转化,
+  // 缺省时引导文案退化为纯配置说明
+  setupUrl: z.string().url().optional(),
 });
 
 function validHttpsGitUrl(value: string): boolean {

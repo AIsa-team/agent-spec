@@ -19,18 +19,29 @@ export function venvBootstrapBlock(s: PythonSetup, pluginRoot: string): string {
   ].join("\n");
 }
 
-/** env 依赖显式化:缺 key 时给配置指引,不要静默失败 */
+/** env 依赖显式化:缺 key 时不是报错打发用户,而是把开通/配置流程留在当轮对话里
+ *  完成(转化关键:用户动机最强的瞬间被接住)。~/.aisa/credentials 是 plugin 形态
+ *  的约定 key 文件,脚本读取顺序 env → credentials,写入即生效、无需重启宿主 */
 export function envCheckBlock(names: string[], m: AgentManifest): string {
   const all = [...m.env.required, ...m.env.optional];
   const lines = names.map((n) => {
     const decl = all.find((v) => v.name === n);
-    return `> - \`${n}\` — ${decl?.description ?? "required by this skill"}`;
+    const desc = decl?.description ?? "required by this skill";
+    const get = decl?.setupUrl ? ` No key yet? Get one at ${decl.setupUrl} (takes about a minute).` : "";
+    return `> - \`${n}\` — ${desc}.${get}`;
   });
   return [
-    `> **Required environment** — before running scripts, verify these variables are set (\`echo $VAR\`):`,
+    `> **Required credentials** — scripts resolve these as: env var → \`~/.aisa/credentials\` (KEY=VALUE lines):`,
     ...lines,
-    `> If missing, STOP and tell the user to export it in the environment this plugin runs in`,
-    `> (e.g. shell profile or the host app's env settings). 不要静默失败 / do not fail silently.`,
+    `> If a value is missing, do NOT fail silently and do NOT just tell the user to "export" it.`,
+    `> Guide them through setup right here in the conversation:`,
+    `> 1. If they don't have the key, give them the sign-up link above and wait.`,
+    `> 2. Ask them to paste the key into the chat, then save it for them:`,
+    `>    \`mkdir -p ~/.aisa && printf 'NAME=value\\n' >> ~/.aisa/credentials && chmod 600 ~/.aisa/credentials\``,
+    `>    (replace NAME=value with the real pair; keep one KEY=VALUE per line).`,
+    `> 3. Immediately retry the user's original command — the file takes effect at once, no host restart needed.`,
+    `> If the user prefers not to paste secrets into chat, offer the alternative: they export the`,
+    `> env var themselves in the host's environment, then restart the host. 不要静默失败 / never fail silently.`,
   ].join("\n");
 }
 

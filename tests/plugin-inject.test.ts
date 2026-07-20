@@ -12,7 +12,7 @@ name: Neo CIO
 version: 1.0.0
 description: d
 env:
-  required: [{ name: AISA_API_KEY, description: AISA gateway key }]
+  required: [{ name: AISA_API_KEY, description: AISA gateway key, setupUrl: "https://console.aisa.one/get-started" }]
 setup:
   python:
     - { name: dsa, requirements: requirements/dsa.txt, env: DSA_VENV_PYTHON, optional: true }
@@ -42,7 +42,26 @@ describe("envCheckBlock", () => {
     const block = envCheckBlock(["AISA_API_KEY"], manifest);
     expect(block).toContain("AISA_API_KEY");
     expect(block).toContain("AISA gateway key");
-    expect(block).toMatch(/不要静默失败|do not fail silently/i);
+    expect(block).toMatch(/不要静默失败|never fail silently/i);
+  });
+
+  // 转化引导:开通链接、credentials 粘贴代写、当轮重试缺一不可
+  it("guides acquisition and in-conversation setup, not just export", () => {
+    const block = envCheckBlock(["AISA_API_KEY"], manifest);
+    expect(block).toContain("https://console.aisa.one/get-started");
+    expect(block).toContain("~/.aisa/credentials");
+    expect(block).toContain("chmod 600");
+    expect(block).toMatch(/retry the user's original command/i);
+    expect(block).toMatch(/no host restart/i);
+  });
+
+  it("omits the sign-up line for vars without setupUrl", () => {
+    const noUrl = parseManifest(
+      "spec: agentspec/v1\nid: x\nname: X\nversion: 1.0.0\ndescription: d\n" +
+      "env:\n  required: [{ name: OTHER_KEY, description: other }]\n");
+    const block = envCheckBlock(["OTHER_KEY"], noUrl);
+    expect(block).not.toContain("Get one at");
+    expect(block).toContain("~/.aisa/credentials");
   });
 });
 
