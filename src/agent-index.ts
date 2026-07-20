@@ -49,22 +49,32 @@ export function parseIndex(jsonText: string): AgentIndex {
   return indexSchema.parse(JSON.parse(jsonText));
 }
 
+/** upsertIndexEntry / upsertIndexGitTarget 共用的 agent 壳体维护:
+ *  查找或新建 agent、刷新 name/description/repo、bump latest、确保该版本的
+ *  targets 记录存在 —— 在克隆后的 index 上原地变更,返回该版本的 targets 供调用方写入具体条目。 */
+function upsertAgentShell(
+  next: AgentIndex, m: AgentManifest, repo: string, version: string,
+): { targets: Record<string, AgentIndexTarget> } {
+  const agent = next.agents[m.id] ?? {
+    name: m.name, description: m.description, repo, latest: version, versions: {},
+  };
+  agent.name = m.name; agent.description = m.description; agent.repo = repo;
+  agent.latest = version;
+  agent.versions[version] = agent.versions[version] ?? { targets: {} };
+  next.agents[m.id] = agent;
+  return agent.versions[version];
+}
+
 export function upsertIndexEntry(index: AgentIndex, entry: {
   manifest: AgentManifest; repo: string; target: string; url: string; sha256: string;
   assets?: { installMd?: string; installSh?: string; guidePrompt?: string };
 }): AgentIndex {
   const { manifest: m } = entry;
   const next: AgentIndex = structuredClone(index);
-  const agent = next.agents[m.id] ?? {
-    name: m.name, description: m.description, repo: entry.repo, latest: m.version, versions: {},
-  };
-  agent.name = m.name; agent.description = m.description; agent.repo = entry.repo;
-  agent.latest = m.version;
-  agent.versions[m.version] = agent.versions[m.version] ?? { targets: {} };
-  agent.versions[m.version].targets[entry.target] = {
+  const version = upsertAgentShell(next, m, entry.repo, m.version);
+  version.targets[entry.target] = {
     url: entry.url, sha256: entry.sha256, ...(entry.assets ?? {}),
   };
-  next.agents[m.id] = agent;
   return next;
 }
 
@@ -74,14 +84,8 @@ export function upsertIndexGitTarget(index: AgentIndex, entry: {
 }): AgentIndex {
   const { manifest: m } = entry;
   const next: AgentIndex = structuredClone(index);
-  const agent = next.agents[m.id] ?? {
-    name: m.name, description: m.description, repo: entry.repo, latest: m.version, versions: {},
-  };
-  agent.name = m.name; agent.description = m.description; agent.repo = entry.repo;
-  agent.latest = m.version;
-  agent.versions[m.version] = agent.versions[m.version] ?? { targets: {} };
-  agent.versions[m.version].targets[entry.target] = { ...entry.git };
-  next.agents[m.id] = agent;
+  const version = upsertAgentShell(next, m, entry.repo, m.version);
+  version.targets[entry.target] = { ...entry.git };
   return next;
 }
 
