@@ -129,6 +129,6 @@ describe("pluginMeta", () => {
   it("derives name/version/description from the manifest", () => {
     const m = parseManifest(
       "spec: agentspec/v1\nid: cio\nname: Neo CIO\nversion: 1.2.3\ndescription: AI CIO\n");
-    expect(pluginMeta(m)).toEqual({ name: "cio", version: "1.2.3", description: "AI CIO" });
+    expect(pluginMeta(m)).toEqual({ name: "cio", version: "1.2.3", description: "AI CIO", author: { name: "AIsa" } });
   });
 });
