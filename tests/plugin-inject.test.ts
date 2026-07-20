@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   injectAfterFrontmatter, venvBootstrapBlock, envCheckBlock, ensureVenvScript,
+  dataBootstrapBlock, ensureDataScript,
 } from "../src/adapters/plugin-core/inject.js";
 import { parseManifest } from "../src/schema/manifest.js";
 
@@ -54,5 +55,34 @@ describe("ensureVenvScript", () => {
     expect(sh).toContain("pip install -r");
     // 幂等:解释器已存在即退出
     expect(sh).toContain('[ -x "$PY" ] && exit 0');
+  });
+});
+
+describe("dataBootstrapBlock / ensureDataScript", () => {
+  const m2 = parseManifest(`
+spec: agentspec/v1
+id: cio
+name: Neo CIO
+version: 1.0.0
+description: d
+vars:
+  PORTFOLIO_DIR: { default: "~/.aisa/agents/cio/portfolio", env: true, description: 组合数据目录 }
+`);
+
+  it("block points at ensure-data.sh and lists default paths with override hint", () => {
+    const block = dataBootstrapBlock(
+      [{ name: "PORTFOLIO_DIR", decl: m2.vars.PORTFOLIO_DIR }], m2, "${CLAUDE_PLUGIN_ROOT}");
+    expect(block).toContain('bash "${CLAUDE_PLUGIN_ROOT}/scripts/ensure-data.sh"');
+    expect(block).toContain("~/.aisa/agents/cio/portfolio");
+    expect(block).toContain("组合数据目录");
+    expect(block).toContain("export `PORTFOLIO_DIR` to override");
+    expect(block).toContain("never overwrites existing data");
+  });
+
+  it("ensure-data.sh seeds copy-if-missing into ~/.aisa/agents/<id>", () => {
+    const sh = ensureDataScript(m2);
+    expect(sh).toMatch(/^#!\/usr\/bin\/env bash/);
+    expect(sh).toContain('DST="${AISA_DATA_DIR:-$HOME/.aisa/agents/cio}"');
+    expect(sh).toContain('[ -e "$DST/$f" ] || cp "$ROOT/assets/$f" "$DST/$f"');
   });
 });

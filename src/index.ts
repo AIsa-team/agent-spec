@@ -6,6 +6,7 @@ export {
   type AgentManifest,
   type RemoteSkillRef,
   type EnvVarDecl,
+  type VarDecl,
 } from "./schema/manifest.js";
 export { parseCronJobs, type CronJob } from "./schema/cron.js";
 export { loadAgentProject, type AgentProject } from "./loader.js";

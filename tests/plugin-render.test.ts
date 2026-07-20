@@ -48,3 +48,37 @@ describe("renderPluginText", () => {
     expect(TEXT_EXTS.has(".bin")).toBe(false);
   });
 });
+
+describe("pluginVars with manifest vars defaults", () => {
+  const m = parseManifest(`
+spec: agentspec/v1
+id: cio
+name: Neo CIO
+version: 1.0.0
+description: d
+vars:
+  PORTFOLIO_DIR: { default: "~/.aisa/agents/cio/portfolio", env: true }
+  OWNER: { default: "Owner（你的雇主）" }
+  SKILLS_DIR: { default: "/should/not/win" }
+setup:
+  python:
+    - { name: dsa, requirements: requirements/dsa.txt, env: DSA_VENV_PYTHON, optional: true }
+`);
+
+  it("renders declared vars to their default literal", () => {
+    const vars = pluginVars(m, "${CLAUDE_PLUGIN_ROOT}");
+    expect(vars.PORTFOLIO_DIR).toBe("~/.aisa/agents/cio/portfolio");
+    expect(vars.OWNER).toBe("Owner（你的雇主）");
+  });
+
+  it("built-in vars win over same-name declarations", () => {
+    const vars = pluginVars(m, "${CLAUDE_PLUGIN_ROOT}");
+    expect(vars.SKILLS_DIR).toBe("${CLAUDE_PLUGIN_ROOT}/skills");
+  });
+
+  it("declared vars no longer count as runtime env vars", () => {
+    const r = renderPluginText("cd {{PORTFOLIO_DIR}} for {{OWNER}}", pluginVars(m, "${CLAUDE_PLUGIN_ROOT}"));
+    expect(r.text).toBe("cd ~/.aisa/agents/cio/portfolio for Owner（你的雇主）");
+    expect(r.runtimeEnvVars).toEqual([]);
+  });
+});

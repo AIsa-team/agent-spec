@@ -1,4 +1,4 @@
-import type { AgentManifest, PythonSetup } from "../../schema/manifest.js";
+import type { AgentManifest, PythonSetup, VarDecl } from "../../schema/manifest.js";
 
 /** 在 frontmatter 闭合线后插块;SKILL.md 的 frontmatter 必须保留在文件头 */
 export function injectAfterFrontmatter(md: string, block: string): string {
@@ -32,6 +32,41 @@ export function envCheckBlock(names: string[], m: AgentManifest): string {
     `> If missing, STOP and tell the user to export it in the environment this plugin runs in`,
     `> (e.g. shell profile or the host app's env settings). 不要静默失败 / do not fail silently.`,
   ].join("\n");
+}
+
+/** 数据自举说明:引用带默认值路径变量的 skill,首调前先播种用户数据目录。
+ *  路径已在 build 期渲染为默认字面值;env: true 的变量仍可用同名环境变量覆盖 */
+export function dataBootstrapBlock(
+  vars: { name: string; decl: VarDecl }[], m: AgentManifest, pluginRoot: string,
+): string {
+  const lines = vars.map(({ name, decl }) =>
+    `> - \`${decl.default}\`${decl.description ? ` — ${decl.description}` : ""}` +
+    `(export \`${name}\` to override — if set, use its value instead of this default)`);
+  return [
+    `> **Data bootstrap** — this skill reads files under the user data directory.`,
+    `> If a path below does not exist yet, run \`bash "${pluginRoot}/scripts/ensure-data.sh"\` first`,
+    `> (idempotent: seeds missing files from the plugin's bundled assets, never overwrites existing data).`,
+    ...lines,
+  ].join("\n");
+}
+
+/** 播种用户数据目录:assets 整树 copy-if-missing 到 ~/.aisa/agents/<id>。
+ *  用户数据(持仓等)绝不覆盖;plugin 更新/卸载不触碰该目录 */
+export function ensureDataScript(m: AgentManifest): string {
+  return `#!/usr/bin/env bash
+# ensure-data.sh — idempotent user-data seeding for the ${m.id} plugin.
+# Copies bundled assets into the data dir ONLY where files are missing;
+# user data lives outside the plugin dir so updates never touch it.
+set -euo pipefail
+ROOT="$(cd "$(dirname "\${BASH_SOURCE[0]}")/.." && pwd)"
+DST="\${AISA_DATA_DIR:-$HOME/.aisa/agents/${m.id}}"
+mkdir -p "$DST"
+(cd "$ROOT/assets" && find . -type f) | while read -r f; do
+  mkdir -p "$DST/$(dirname "$f")"
+  [ -e "$DST/$f" ] || cp "$ROOT/assets/$f" "$DST/$f"
+done
+echo "data ready: $DST"
+`;
 }
 
 /** 一个脚本管全部 venv:按 name 查 requirements,幂等自举到 <pluginRoot>/.venvs/<name> */

@@ -132,3 +132,63 @@ describe("pluginMeta", () => {
     expect(pluginMeta(m)).toEqual({ name: "cio", version: "1.2.3", description: "AI CIO", author: { name: "AIsa" } });
   });
 });
+
+describe("buildPluginTree with vars defaults and assets", () => {
+  function makeVarsFixture(): string {
+    const root = mkdtempSync(join(tmpdir(), "agentspec-pv-"));
+    writeFileSync(join(root, "agent.yaml"), `
+spec: agentspec/v1
+id: cio
+name: Neo CIO
+version: 1.0.0
+description: d
+vars:
+  PORTFOLIO_DIR: { default: "~/.aisa/agents/cio/portfolio", env: true }
+  OWNER: { default: "Owner" }
+skills:
+  inline: [finance/report]
+`);
+    mkdirSync(join(root, "soul"));
+    writeFileSync(join(root, "soul", "01-id.md"), "# Id");
+    mkdirSync(join(root, "skills", "finance", "report"), { recursive: true });
+    writeFileSync(join(root, "skills", "finance", "report", "SKILL.md"),
+      "---\nname: report\n---\nRead `{{PORTFOLIO_DIR}}/portfolio_truth.json` for {{OWNER}}.");
+    mkdirSync(join(root, "assets", "portfolio"), { recursive: true });
+    writeFileSync(join(root, "assets", "portfolio", "portfolio_truth.json"), "{}");
+    writeFileSync(join(root, "assets", "portfolio", "engine.py"), "print(1)");
+    return root;
+  }
+
+  let out: string;
+  let runtimeEnvVars: string[];
+  beforeAll(async () => {
+    const project = await loadAgentProject(makeVarsFixture());
+    out = mkdtempSync(join(tmpdir(), "agentspec-pvout-"));
+    ({ runtimeEnvVars } = await buildPluginTree(
+      { project, resolvedSkills: [] }, out, "${CLAUDE_PLUGIN_ROOT}"));
+  });
+
+  it("renders defaulted vars to literals and keeps them out of runtimeEnvVars", () => {
+    const md = readFileSync(join(out, "skills/finance/report/SKILL.md"), "utf8");
+    expect(md).toContain("~/.aisa/agents/cio/portfolio/portfolio_truth.json");
+    expect(md).toContain("for Owner.");
+    expect(md).not.toMatch(/\{\{/);
+    expect(runtimeEnvVars).toEqual([]);
+  });
+
+  it("injects data bootstrap (not hard env-check) for env-overridable defaulted vars", () => {
+    const md = readFileSync(join(out, "skills/finance/report/SKILL.md"), "utf8");
+    expect(md).toContain("ensure-data.sh");
+    expect(md).toContain("export `PORTFOLIO_DIR` to override");
+    expect(md).not.toContain("Required environment");
+  });
+
+  it("packages assets and ships executable ensure-data.sh", () => {
+    expect(existsSync(join(out, "assets/portfolio/portfolio_truth.json"))).toBe(true);
+    expect(existsSync(join(out, "assets/portfolio/engine.py"))).toBe(true);
+    const sh = join(out, "scripts/ensure-data.sh");
+    expect(existsSync(sh)).toBe(true);
+    expect(statSync(sh).mode & 0o111).toBeTruthy();
+    expect(readFileSync(sh, "utf8")).toContain("$HOME/.aisa/agents/cio");
+  });
+});

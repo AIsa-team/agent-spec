@@ -83,6 +83,15 @@ const pythonSetup = z.object({
   description: z.string().optional(),
 });
 
+// 安装期模板变量的声明式默认值(2026-07-20,plugin targets 需要):
+// hermes 在安装时用真实值渲染 {{VAR}};plugin 无安装步骤,build 期用 default 渲染。
+// env: true 表示运行时可用同名环境变量覆盖(路径类),false 为纯文本替换(称呼类)
+const varDecl = z.object({
+  default: z.string(),
+  env: z.boolean().default(false),
+  description: z.string().optional(),
+});
+
 const manifestSchema = z.object({
   spec: z.literal("agentspec/v1"),
   id: slug,
@@ -100,6 +109,7 @@ const manifestSchema = z.object({
     optional: z.array(envVarDecl).default([]),
   }).default({ required: [], optional: [] }),
   skills: skillsSchema.default({ inline: [], remote: [] }),
+  vars: z.record(z.string().regex(/^[A-Z][A-Z0-9_]*$/), varDecl).default({}),
   cron: z.string().optional(),
   setup: z.object({
     python: z.array(pythonSetup).default([]),
@@ -119,6 +129,7 @@ export type AgentManifest = z.infer<typeof manifestSchema>;
 export type RemoteSkillRef = z.infer<typeof remoteSkillRef>;
 export type EnvVarDecl = z.infer<typeof envVarDecl>;
 export type PythonSetup = z.infer<typeof pythonSetup>;
+export type VarDecl = z.infer<typeof varDecl>;
 
 export function parseManifest(yamlText: string): AgentManifest {
   let raw: unknown;
