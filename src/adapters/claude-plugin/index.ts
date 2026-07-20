@@ -1,28 +1,11 @@
-import { mkdir, writeFile, readdir } from "node:fs/promises";
-import { join, dirname } from "node:path";
 import type { Adapter, BuildInput, BuildResult } from "../adapter.js";
 import { registerAdapter } from "../adapter.js";
 import { buildPluginTree } from "../plugin-core/build.js";
 import { pluginMeta } from "../plugin-core/manifest.js";
 import { pluginVars, renderPluginText } from "../plugin-core/render.js";
+import { writeInto, listFiles } from "../plugin-core/fs.js";
 
 const PLUGIN_ROOT = "${CLAUDE_PLUGIN_ROOT}";
-
-async function writeInto(outDir: string, rel: string, content: string): Promise<void> {
-  const abs = join(outDir, rel);
-  await mkdir(dirname(abs), { recursive: true });
-  await writeFile(abs, content);
-}
-
-async function listFiles(dir: string, base = ""): Promise<string[]> {
-  const out: string[] = [];
-  for (const e of await readdir(dir, { withFileTypes: true })) {
-    const rel = base ? `${base}/${e.name}` : e.name;
-    if (e.isDirectory()) out.push(...await listFiles(join(dir, e.name), rel));
-    else out.push(rel);
-  }
-  return out.sort();
-}
 
 export const claudePluginAdapter: Adapter = {
   target: "claude-plugin",
