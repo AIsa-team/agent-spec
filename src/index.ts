@@ -33,8 +33,10 @@ export {
   emptyIndex,
   parseIndex,
   upsertIndexEntry,
+  upsertIndexGitTarget,
   setIndexTemplate,
   serializeIndex,
   type AgentIndex,
   type AgentIndexTarget,
+  type AgentIndexGitTarget,
 } from "./agent-index.js";

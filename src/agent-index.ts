@@ -6,7 +6,7 @@ import { AgentSpecError, type AgentManifest } from "./schema/manifest.js";
 //     消费端只读 URL、不再自行拼文件名)
 //   e2bTemplate — 已烤好的 per-agent 版本化 E2B 模板名(ADR-0005);
 //     语义:字段存在 = 模板已 bake 成功且与该版本一致(bake 成功后才写入)
-const targetSchema = z.object({
+const urlTargetSchema = z.object({
   url: z.string(),
   sha256: z.string(),
   installMd: z.string().optional(),
@@ -14,6 +14,17 @@ const targetSchema = z.object({
   guidePrompt: z.string().optional(),
   e2bTemplate: z.string().optional(),
 });
+
+// plugin 类 target 走 git 分发(ADR-0007): marketplace 不支持 zip source,
+// 不可变性由 tag+commit 保证, path 是 marketplace 仓库内的产物目录
+const gitTargetSchema = z.object({
+  repo: z.string(),
+  tag: z.string(),
+  commit: z.string(),
+  path: z.string(),
+});
+
+const targetSchema = z.union([urlTargetSchema, gitTargetSchema]);
 
 const indexSchema = z.object({
   spec: z.literal("agent-index/v1"),
@@ -28,6 +39,7 @@ const indexSchema = z.object({
 
 export type AgentIndex = z.infer<typeof indexSchema>;
 export type AgentIndexTarget = z.infer<typeof targetSchema>;
+export type AgentIndexGitTarget = z.infer<typeof gitTargetSchema>;
 
 export function emptyIndex(): AgentIndex {
   return { spec: "agent-index/v1", agents: {} };
@@ -56,8 +68,25 @@ export function upsertIndexEntry(index: AgentIndex, entry: {
   return next;
 }
 
+/** plugin 类 target 走 git 分发(ADR-0007),没有 sha256 归档 —— 独立于 upsertIndexEntry 写入。 */
+export function upsertIndexGitTarget(index: AgentIndex, entry: {
+  manifest: AgentManifest; repo: string; target: string; git: AgentIndexGitTarget;
+}): AgentIndex {
+  const { manifest: m } = entry;
+  const next: AgentIndex = structuredClone(index);
+  const agent = next.agents[m.id] ?? {
+    name: m.name, description: m.description, repo: entry.repo, latest: m.version, versions: {},
+  };
+  agent.name = m.name; agent.description = m.description; agent.repo = entry.repo;
+  agent.latest = m.version;
+  agent.versions[m.version] = agent.versions[m.version] ?? { targets: {} };
+  agent.versions[m.version].targets[entry.target] = { ...entry.git };
+  next.agents[m.id] = agent;
+  return next;
+}
+
 /** bake 成功后把模板名记入指定版本 target 条目的 e2bTemplate(纯函数)。
- *  条目不存在时抛错(先 publish 后 bake)。 */
+ *  条目不存在时抛错(先 publish 后 bake)。git 形态条目没有 e2bTemplate 语义 —— 直接拒绝。 */
 export function setIndexTemplate(index: AgentIndex, opts: {
   id: string; version: string; target: string; templateName: string;
 }): AgentIndex {
@@ -65,6 +94,7 @@ export function setIndexTemplate(index: AgentIndex, opts: {
   const t = next.agents[opts.id]?.versions[opts.version]?.targets[opts.target];
   if (!t) throw new AgentSpecError(
     `index has no ${opts.target} entry for ${opts.id}@${opts.version} — publish before recording a template`);
+  if (!("url" in t)) throw new AgentSpecError("e2bTemplate only applies to url-form targets");
   t.e2bTemplate = opts.templateName;
   return next;
 }

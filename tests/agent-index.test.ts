@@ -1,6 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { parseManifest } from "../src/schema/manifest.js";
-import { emptyIndex, parseIndex, upsertIndexEntry, setIndexTemplate, serializeIndex } from "../src/agent-index.js";
+import {
+  emptyIndex, parseIndex, upsertIndexEntry, setIndexTemplate, serializeIndex,
+  upsertIndexGitTarget, type AgentIndexGitTarget,
+} from "../src/agent-index.js";
 
 const m = parseManifest(`
 spec: agentspec/v1
@@ -49,5 +52,43 @@ describe("index target extensions (2026-07-15)", () => {
   it("setIndexTemplate throws when the version entry does not exist", () => {
     expect(() => setIndexTemplate(emptyIndex(), { id: "x", version: "1.0.0", target: "hermes", templateName: "t" }))
       .toThrow(/publish before/);
+  });
+});
+
+describe("git-form targets (plugin distribution)", () => {
+  const git: AgentIndexGitTarget = {
+    repo: "AIsa-team/agent-index", tag: "cio-v1.0.4",
+    commit: "a".repeat(40), path: "plugins/cio",
+  };
+
+  it("upserts a git target alongside url targets and round-trips through parse", () => {
+    let idx = emptyIndex();
+    idx = upsertIndexEntry(idx, {
+      manifest: m, repo: "AIsa-team/agent-index", target: "hermes",
+      url: "https://x/t.tar.gz", sha256: "s",
+    });
+    idx = upsertIndexGitTarget(idx, {
+      manifest: m, repo: "AIsa-team/agent-index", target: "claude-plugin", git,
+    });
+    const parsed = parseIndex(serializeIndex(idx));
+    const targets = parsed.agents[m.id].versions[m.version].targets;
+    expect(targets["claude-plugin"]).toEqual(git);
+    expect(targets["hermes"]).toMatchObject({ url: "https://x/t.tar.gz" });
+  });
+
+  it("rejects a git target missing commit", () => {
+    const bad = JSON.parse(serializeIndex(upsertIndexGitTarget(emptyIndex(), {
+      manifest: m, repo: "r", target: "codex-plugin", git,
+    })));
+    delete bad.agents[m.id].versions[m.version].targets["codex-plugin"].commit;
+    expect(() => parseIndex(JSON.stringify(bad))).toThrow();
+  });
+
+  it("setIndexTemplate throws on a git-form entry (e2bTemplate is url-only)", () => {
+    const idx = upsertIndexGitTarget(emptyIndex(), {
+      manifest: m, repo: "r", target: "claude-plugin", git,
+    });
+    expect(() => setIndexTemplate(idx, { id: m.id, version: m.version, target: "claude-plugin", templateName: "t" }))
+      .toThrow(/url-form/);
   });
 });
