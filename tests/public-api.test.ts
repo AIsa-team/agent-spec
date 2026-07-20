@@ -14,7 +14,7 @@ describe("public api", () => {
       "parseCronJobs", "loadAgentProject", "resolveSkills",
       "realGitRunner", "REMOTE_SKILL_LIMITS",
       "createLock", "serializeLock", "parseLock",
-      "getAdapter", "registerAdapter", "hermesAdapter", "buildEnvExample",
+      "getAdapter", "registerAdapter", "hermesAdapter", "claudePluginAdapter", "buildEnvExample",
     ]) expect(api, name).toHaveProperty(name);
     expect(api).not.toHaveProperty("DEFAULT_SKILLS_REPO");
     expect(remoteTypeProbe.name).toBe("hello");
@@ -23,5 +23,9 @@ describe("public api", () => {
 
   it("hermes adapter is registered by importing the index", () => {
     expect(api.getAdapter("hermes")).toBe(api.hermesAdapter);
+  });
+
+  it("claude-plugin adapter is registered by importing the index", () => {
+    expect(api.getAdapter("claude-plugin")).toBe(api.claudePluginAdapter);
   });
 });

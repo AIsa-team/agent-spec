@@ -26,6 +26,7 @@ export {
   type BuildResult,
 } from "./adapters/adapter.js";
 export { hermesAdapter } from "./adapters/hermes/index.js";
+export { claudePluginAdapter } from "./adapters/claude-plugin/index.js";
 export { buildEnvExample } from "./envfile.js";
 export {
   emptyIndex,
