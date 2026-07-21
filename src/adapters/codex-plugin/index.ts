@@ -19,27 +19,9 @@ export const codexPluginAdapter: Adapter = {
     await writeInto(outDir, ".codex-plugin/plugin.json",
       JSON.stringify(pluginMeta(m), null, 2) + "\n");
 
-    // SOUL 双通道承载(2026-07-20 核实 Codex hooks 文档):
-    // 1) SessionStart hook — stdout 注入为 developer context,接近系统提示词语义,
-    //    但非托管 hook 需用户在 /hooks 信任一次才生效;
-    // 2) always-apply soul skill — 信任前的兜底,description 引导宿主每轮加载。
+    // SOUL 降级承载：always-apply skill，description 引导宿主每轮加载
     const soulRaw = input.project.soulFiles.map((f) => f.content).join("\n\n---\n\n");
     const soul = renderPluginText(soulRaw, pluginVars(m, PLUGIN_ROOT)).text;
-
-    await writeInto(outDir, "hooks/soul-context.md",
-      `# ${m.name} — identity and operating rules (injected at session start)\n\n${soul}\n`);
-    await writeInto(outDir, "hooks/hooks.json", JSON.stringify({
-      hooks: {
-        SessionStart: [{
-          hooks: [{
-            type: "command",
-            command: `cat "${PLUGIN_ROOT}/hooks/soul-context.md"`,
-            statusMessage: `Loading ${m.name} identity`,
-          }],
-        }],
-      },
-    }, null, 2) + "\n");
-
     await writeInto(outDir, "skills/soul/SKILL.md", [
       "---",
       "name: soul",
