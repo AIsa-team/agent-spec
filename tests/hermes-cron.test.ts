@@ -1,7 +1,15 @@
 import { describe, it, expect } from "vitest";
-import { buildHermesCronJobs } from "../src/adapters/hermes/cron.js";
+import { buildHermesCronJobs, HERMES_CRON_NOTE } from "../src/adapters/hermes/cron.js";
 
 describe("buildHermesCronJobs", () => {
+  it("appends the hermes runtime note to every prompt", () => {
+    const out = JSON.parse(buildHermesCronJobs([
+      { id: "a", schedule: "0 9 * * *", prompt: "do x", model: null, deliver: "origin", enabled: true },
+    ]));
+    expect(out.jobs[0].prompt).toBe("do x" + HERMES_CRON_NOTE);
+    expect(HERMES_CRON_NOTE).toContain("default_api.execute_code");
+  });
+
   it("maps agnostic jobs to hermes jobs.json shape", () => {
     const text = buildHermesCronJobs([
       { id: "push", schedule: "0 10 * * 1-5", prompt: "run push", model: null, deliver: "origin", enabled: true },
