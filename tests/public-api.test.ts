@@ -15,6 +15,7 @@ describe("public api", () => {
       "realGitRunner", "REMOTE_SKILL_LIMITS",
       "createLock", "serializeLock", "parseLock",
       "getAdapter", "registerAdapter", "hermesAdapter", "claudePluginAdapter", "codexPluginAdapter", "buildEnvExample",
+      "openclawAdapter", "buildOpenclawAgentsMd", "buildOpenclawCronSetup", "OPENCLAW_CRON_NOTE",
     ]) expect(api, name).toHaveProperty(name);
     expect(api).not.toHaveProperty("DEFAULT_SKILLS_REPO");
     expect(remoteTypeProbe.name).toBe("hello");
@@ -31,5 +32,9 @@ describe("public api", () => {
 
   it("codex-plugin adapter is registered by importing the index", () => {
     expect(api.getAdapter("codex-plugin")).toBe(api.codexPluginAdapter);
+  });
+
+  it("openclaw adapter is registered by importing the index", () => {
+    expect(api.getAdapter("openclaw")).toBe(api.openclawAdapter);
   });
 });

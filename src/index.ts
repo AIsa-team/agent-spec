@@ -29,6 +29,9 @@ export {
 export { hermesAdapter } from "./adapters/hermes/index.js";
 export { claudePluginAdapter } from "./adapters/claude-plugin/index.js";
 export { codexPluginAdapter } from "./adapters/codex-plugin/index.js";
+export { openclawAdapter } from "./adapters/openclaw/index.js";
+export { buildOpenclawAgentsMd } from "./adapters/openclaw/agents-md.js";
+export { buildOpenclawCronSetup, OPENCLAW_CRON_NOTE } from "./adapters/openclaw/cron-setup.js";
 export { buildEnvExample } from "./envfile.js";
 export {
   emptyIndex,
