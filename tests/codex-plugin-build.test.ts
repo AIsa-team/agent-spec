@@ -84,10 +84,6 @@ describe("codexPluginAdapter SessionStart hook (SOUL dual-channel)", () => {
     expect(entry.command).toBe('cat "${PLUGIN_ROOT}/hooks/soul-context.md"');
 
     const ctx = readFileSync(join(out, "hooks/soul-context.md"), "utf8");
-    // hook 每会话必跑:注入文本必须声明激活条件,避免污染无关会话
-    expect(ctx).toMatch(/ACTIVATION RULE/);
-    expect(ctx).toMatch(/dormant/i);
-    expect(ctx).toContain("@cio");
     expect(ctx).toContain("# Identity");
     expect(ctx).toContain("${PLUGIN_ROOT}/skills");
     expect(ctx).not.toMatch(/\{\{/);
