@@ -71,3 +71,23 @@ describe("codexPluginAdapter.build — manifest name with quotes", () => {
     expect(descLine).toBe(`description: ${expected}`);
   });
 });
+
+describe("codexPluginAdapter SessionStart hook (SOUL dual-channel)", () => {
+  it("emits hooks.json injecting soul-context.md at session start", async () => {
+    const project = await loadAgentProject(makeFixture());
+    const out = mkdtempSync(join(tmpdir(), "agentspec-xph-"));
+    await codexPluginAdapter.build({ project, resolvedSkills: [] }, out);
+
+    const hooks = JSON.parse(readFileSync(join(out, "hooks/hooks.json"), "utf8"));
+    const entry = hooks.hooks.SessionStart[0].hooks[0];
+    expect(entry.type).toBe("command");
+    expect(entry.command).toBe('cat "${PLUGIN_ROOT}/hooks/soul-context.md"');
+
+    const ctx = readFileSync(join(out, "hooks/soul-context.md"), "utf8");
+    expect(ctx).toContain("# Identity");
+    expect(ctx).toContain("${PLUGIN_ROOT}/skills");
+    expect(ctx).not.toMatch(/\{\{/);
+    // 兜底 skill 仍在(hook 未被信任前的通道)
+    expect(readFileSync(join(out, "skills/soul/SKILL.md"), "utf8")).toMatch(/ALWAYS apply/i);
+  });
+});
