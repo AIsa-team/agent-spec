@@ -71,3 +71,44 @@ describe("codexPluginAdapter.build — manifest name with quotes", () => {
     expect(descLine).toBe(`description: ${expected}`);
   });
 });
+
+describe("codex plugin.json branding/interface", () => {
+  it("emits the interface block when branding is declared, omits when absent", async () => {
+    const root = makeFixture();
+    const yaml = readFileSync(join(root, "agent.yaml"), "utf8");
+    writeFileSync(join(root, "agent.yaml"), yaml + `
+branding:
+  developerName: AIsa
+  category: Productivity
+  websiteURL: https://console.aisa.one/financial-agent
+  privacyPolicyURL: https://aisa.one/privacy
+  termsOfServiceURL: https://aisa.one/TOS
+  defaultPrompt: ["port", "scan AAPL"]
+`);
+    const project = await loadAgentProject(root);
+    const out = mkdtempSync(join(tmpdir(), "agentspec-xpb-"));
+    await codexPluginAdapter.build({ project, resolvedSkills: [] }, out);
+    const pj = JSON.parse(readFileSync(join(out, ".codex-plugin/plugin.json"), "utf8"));
+    expect(pj.skills).toBe("./skills/");
+    expect(pj.author).toEqual({ name: "AIsa", url: "https://console.aisa.one/financial-agent" });
+    expect(pj.interface).toMatchObject({
+      displayName: "Neo CIO",
+      developerName: "AIsa",
+      category: "Productivity",
+      websiteURL: "https://console.aisa.one/financial-agent",
+      privacyPolicyURL: "https://aisa.one/privacy",
+      termsOfServiceURL: "https://aisa.one/TOS",
+      defaultPrompt: ["port", "scan AAPL"],
+    });
+    // 未声明的字段不出现(composerIcon/brandColor 暂缺)
+    expect(pj.interface).not.toHaveProperty("composerIcon");
+    expect(pj.interface).not.toHaveProperty("brandColor");
+
+    // 无 branding 的项目不输出 interface(向后兼容)
+    const plain = await loadAgentProject(makeFixture());
+    const out2 = mkdtempSync(join(tmpdir(), "agentspec-xpb2-"));
+    await codexPluginAdapter.build({ project: plain, resolvedSkills: [] }, out2);
+    const pj2 = JSON.parse(readFileSync(join(out2, ".codex-plugin/plugin.json"), "utf8"));
+    expect(pj2).not.toHaveProperty("interface");
+  });
+});

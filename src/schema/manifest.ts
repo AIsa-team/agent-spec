@@ -95,6 +95,23 @@ const varDecl = z.object({
   description: z.string().optional(),
 });
 
+// 安装面元信息(2026-07-21,对齐 Codex plugin interface 块):全部可选,
+// 声明什么输出什么;图标 composerIcon 需图片资产,暂缺时留空
+const brandingSchema = z.object({
+  developerName: z.string().optional(),
+  homepage: z.string().url().optional(),
+  license: z.string().optional(),
+  keywords: z.array(z.string()).default([]),
+  category: z.string().optional(),
+  capabilities: z.array(z.string()).default([]),
+  websiteURL: z.string().url().optional(),
+  privacyPolicyURL: z.string().url().optional(),
+  termsOfServiceURL: z.string().url().optional(),
+  brandColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
+  composerIcon: z.string().optional(),
+  defaultPrompt: z.array(z.string()).default([]),
+});
+
 const manifestSchema = z.object({
   spec: z.literal("agentspec/v1"),
   id: slug,
@@ -117,6 +134,7 @@ const manifestSchema = z.object({
   setup: z.object({
     python: z.array(pythonSetup).default([]),
   }).default({ python: [] }),
+  branding: brandingSchema.optional(),
   update: z.object({
     channel: z.enum(["latest", "pinned"]).default("latest"),
     auto: z.boolean().default(true),

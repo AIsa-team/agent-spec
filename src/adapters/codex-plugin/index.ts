@@ -1,7 +1,7 @@
 import type { Adapter, BuildInput, BuildResult } from "../adapter.js";
 import { registerAdapter } from "../adapter.js";
 import { buildPluginTree } from "../plugin-core/build.js";
-import { pluginMeta } from "../plugin-core/manifest.js";
+import { pluginMeta, codexInterface } from "../plugin-core/manifest.js";
 import { pluginVars, renderPluginText } from "../plugin-core/render.js";
 import { writeInto, listFiles } from "../plugin-core/fs.js";
 
@@ -16,8 +16,13 @@ export const codexPluginAdapter: Adapter = {
     const m = input.project.manifest;
     await buildPluginTree(input, outDir, PLUGIN_ROOT);
 
+    const iface = codexInterface(m);
     await writeInto(outDir, ".codex-plugin/plugin.json",
-      JSON.stringify(pluginMeta(m), null, 2) + "\n");
+      JSON.stringify({
+        ...pluginMeta(m),
+        skills: "./skills/",
+        ...(iface ? { interface: iface } : {}),
+      }, null, 2) + "\n");
 
     // SOUL 降级承载：always-apply skill，description 引导宿主每轮加载
     const soulRaw = input.project.soulFiles.map((f) => f.content).join("\n\n---\n\n");
