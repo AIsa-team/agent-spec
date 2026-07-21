@@ -76,6 +76,16 @@ describe("git-form targets (plugin distribution)", () => {
     expect(targets["hermes"]).toMatchObject({ url: "https://x/t.tar.gz" });
   });
 
+  it("round-trips the optional installMd on git targets", () => {
+    const withDoc = { ...git, installMd: "https://x/INSTALL-claudecode.md" };
+    const idx = upsertIndexGitTarget(emptyIndex(), {
+      manifest: m, repo: "AIsa-team/agent-index", target: "claude-plugin", git: withDoc,
+    });
+    const parsed = parseIndex(serializeIndex(idx));
+    expect(parsed.agents[m.id].versions[m.version].targets["claude-plugin"])
+      .toEqual(withDoc);
+  });
+
   it("rejects a git target missing commit", () => {
     const bad = JSON.parse(serializeIndex(upsertIndexGitTarget(emptyIndex(), {
       manifest: m, repo: "r", target: "codex-plugin", git,

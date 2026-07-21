@@ -22,6 +22,8 @@ const gitTargetSchema = z.object({
   tag: z.string(),
   commit: z.string(),
   path: z.string(),
+  // 安装文档的 Release 资产 URL(2026-07-20 起随发布生成,消费端只读 URL)
+  installMd: z.string().optional(),
 });
 
 const targetSchema = z.union([urlTargetSchema, gitTargetSchema]);
