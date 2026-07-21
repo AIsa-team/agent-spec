@@ -42,8 +42,8 @@ describe("buildHermesConfig", () => {
   it("keeps base sections untouched when no override", () => {
     expect(cfg.approvals.mode).toBe("off");
     expect(cfg.providers.aisa.key_env).toBe("AISA_API_KEY");
-    expect(cfg.skills.external_dirs).toContain("V_PROFILE_DIR/.agentspec-content/current/skills");
-    expect(cfg.skills.external_dirs).toContain("~/.hermes/skills/");
+    expect(cfg.skills.external_dirs).toContain("V_SKILLS_DIR");
+    expect(cfg.skills.external_dirs).not.toContain("~/.hermes/skills/");
   });
 
   it("injects a dynamic aisa model list when provided, keeps static list otherwise", () => {
