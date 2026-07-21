@@ -26,8 +26,20 @@ export const codexPluginAdapter: Adapter = {
     const soulRaw = input.project.soulFiles.map((f) => f.content).join("\n\n---\n\n");
     const soul = renderPluginText(soulRaw, pluginVars(m, PLUGIN_ROOT)).text;
 
-    await writeInto(outDir, "hooks/soul-context.md",
-      `# ${m.name} — identity and operating rules (injected at session start)\n\n${soul}\n`);
+    // hook 是插件级、每会话必跑(plugin 开关全局,无会话作用域),
+    // 注入文本必须自带激活条件,否则会污染与本 agent 无关的会话
+    await writeInto(outDir, "hooks/soul-context.md", [
+      `# ${m.name} — dormant persona (injected at session start by the ${m.id} plugin)`,
+      "",
+      `ACTIVATION RULE: adopt the identity and rules below ONLY when the user engages ${m.name} —`,
+      `mentions @${m.id}, uses trigger commands from this plugin's skills, or the conversation is about`,
+      `the domain this agent covers (${m.description}).`,
+      `In ALL other sessions and topics, everything below is dormant: it must not affect your`,
+      `behavior, tone, language, or outputs in any way.`,
+      "",
+      "---",
+      "", soul, "",
+    ].join("\n"));
     await writeInto(outDir, "hooks/hooks.json", JSON.stringify({
       hooks: {
         SessionStart: [{
