@@ -112,6 +112,12 @@ const brandingSchema = z.object({
   defaultPrompt: z.array(z.string()).default([]),
 });
 
+// openclaw quick command:目前只有 exec 形态(触发词 → 定长命令,输出原样转发)
+const openclawQuickCommand = z.object({
+  type: z.literal("exec").default("exec"),
+  command: z.string().min(1),
+});
+
 const manifestSchema = z.object({
   spec: z.literal("agentspec/v1"),
   id: slug,
@@ -142,6 +148,11 @@ const manifestSchema = z.object({
   targets: z.object({
     hermes: z.object({
       config: z.record(z.unknown()).default({}),
+    }).optional(),
+    // ADR-0008: openclaw target 的声明块,由 openclaw adapter 渲染进 AGENTS.md
+    openclaw: z.object({
+      command_allowlist: z.array(z.string()).default([]),
+      quick_commands: z.record(z.string(), openclawQuickCommand).default({}),
     }).optional(),
   }).optional(),
 });

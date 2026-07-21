@@ -207,3 +207,32 @@ description: d
       .toThrow(/version/);
   });
 });
+
+describe("targets.openclaw", () => {
+  const base = `
+spec: agentspec/v1
+id: cio
+name: X
+version: 1.0.0
+description: d
+`;
+  it("parses command_allowlist and quick_commands with defaults", () => {
+    const m = parseManifest(base + `
+targets:
+  openclaw:
+    command_allowlist:
+      - "python3 {{SKILLS_DIR}}/aisa-search/scripts/call.py search *"
+    quick_commands:
+      "888":
+        command: "python3 {{PORTFOLIO_DIR}}/valuation_push.py"
+`);
+    expect(m.targets?.openclaw?.command_allowlist).toHaveLength(1);
+    expect(m.targets?.openclaw?.quick_commands["888"]).toEqual(
+      { type: "exec", command: "python3 {{PORTFOLIO_DIR}}/valuation_push.py" });
+  });
+  it("defaults to empty lists when block is empty", () => {
+    const m = parseManifest(base + "targets:\n  openclaw: {}\n");
+    expect(m.targets?.openclaw?.command_allowlist).toEqual([]);
+    expect(m.targets?.openclaw?.quick_commands).toEqual({});
+  });
+});
