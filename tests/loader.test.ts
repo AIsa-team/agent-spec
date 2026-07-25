@@ -12,7 +12,7 @@ version: 0.0.1
 description: fixture agent
 skills:
   inline:
-    - demo/hello
+    - hello
 cron: cron/jobs.yaml
 `;
 
@@ -21,8 +21,8 @@ function makeFixture(): string {
   writeFileSync(join(root, "agent.yaml"), MANIFEST);
   mkdirSync(join(root, "soul"));
   writeFileSync(join(root, "soul", "SOUL.md"), "# Soul of {{OWNER}}");
-  mkdirSync(join(root, "skills", "demo", "hello"), { recursive: true });
-  writeFileSync(join(root, "skills", "demo", "hello", "SKILL.md"), "---\nname: hello\n---\nhi");
+  mkdirSync(join(root, "skills", "hello"), { recursive: true });
+  writeFileSync(join(root, "skills", "hello", "SKILL.md"), "---\nname: hello\n---\nhi");
   mkdirSync(join(root, "cron"));
   writeFileSync(join(root, "cron", "jobs.yaml"),
     'jobs:\n  - { id: tick, schedule: "0 9 * * *", prompt: tick }\n');
@@ -40,15 +40,15 @@ describe("loadAgentProject", () => {
     expect(p.manifest.id).toBe("fix");
     expect(p.soulFiles).toEqual([{ relPath: "SOUL.md", content: "# Soul of {{OWNER}}" }]);
     expect(p.cronJobs[0].id).toBe("tick");
-    expect(p.inlineSkillDirs[0]).toBe(join(root, "skills", "demo", "hello"));
+    expect(p.inlineSkillDirs[0]).toBe(join(root, "skills", "hello"));
     expect(p.assetEntries).toEqual(["engine"]);
   });
 
   it("fails when a declared inline skill dir is missing SKILL.md", async () => {
     const bad = makeFixture();
     writeFileSync(join(bad, "agent.yaml"),
-      MANIFEST.replace("demo/hello", "demo/missing"));
-    await expect(loadAgentProject(bad)).rejects.toThrow(/demo\/missing/);
+      MANIFEST.replace("hello", "missing"));
+    await expect(loadAgentProject(bad)).rejects.toThrow(/skills\/missing/);
   });
 
   it("fails when a declared setup requirements file is missing", async () => {

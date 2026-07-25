@@ -5,6 +5,15 @@ import { posix } from "node:path";
 export class AgentSpecError extends Error {}
 
 const slug = z.string().regex(/^[a-z0-9][a-z0-9-]*$/, "must be a lowercase slug");
+
+// Inline skills must be a single flat directory name under skills/ — no "/".
+// Claude Code plugins, Codex plugin skill roots and Gemini CLI all discover
+// skills at exactly one level and silently drop anything deeper. Leading "_"
+// is allowed for non-user-facing helper skills (e.g. `_shared`).
+// Also keeps `join(root, "skills", name)` in the loader from escaping the project.
+const inlineSkillName = z.string().regex(
+  /^[a-z0-9_][a-z0-9_-]*$/,
+  'must be a flat skill directory name (lowercase, no "/" — nested skills are not discoverable)');
 const semver = z.string().regex(/^\d+\.\d+\.\d+$/, "must be semver x.y.z");
 
 const envVarDecl = z.object({
@@ -59,7 +68,7 @@ const remoteSkillRef = z.object({
 }));
 
 const skillsSchema = z.object({
-  inline: z.array(z.string().min(1)).default([]),
+  inline: z.array(inlineSkillName).default([]),
   remote: z.array(remoteSkillRef).default([]),
 }).strict().superRefine((skills, ctx) => {
   const names = new Map<string, string>();

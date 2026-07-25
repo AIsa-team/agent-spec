@@ -15,13 +15,13 @@ name: Neo CIO
 version: 1.0.0
 description: AI CIO
 skills:
-  inline: [demo/hello]
+  inline: [hello]
 `);
   mkdirSync(join(root, "soul"));
   writeFileSync(join(root, "soul", "01-identity.md"), "# Identity\nBe rigorous. {{SKILLS_DIR}}");
   writeFileSync(join(root, "soul", "02-rules.md"), "# Rules");
-  mkdirSync(join(root, "skills", "demo", "hello"), { recursive: true });
-  writeFileSync(join(root, "skills", "demo", "hello", "SKILL.md"), "---\nname: hello\n---\nhi");
+  mkdirSync(join(root, "skills", "hello"), { recursive: true });
+  writeFileSync(join(root, "skills", "hello", "SKILL.md"), "---\nname: hello\n---\nhi");
   return root;
 }
 
@@ -40,7 +40,7 @@ describe("claudePluginAdapter.build", () => {
   it("emits the plugin layout", () => {
     for (const f of [
       ".claude-plugin/plugin.json", "agents/cio.md", "settings.json",
-      "skills/demo/hello/SKILL.md",
+      "skills/hello/SKILL.md",
     ]) expect(existsSync(join(out, f)), f).toBe(true);
   });
 

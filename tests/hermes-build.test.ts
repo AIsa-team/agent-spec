@@ -21,7 +21,7 @@ env:
   required: [{ name: AISA_API_KEY, description: gateway }]
   optional: [{ name: FINNHUB_API_KEY, description: fallback, degrade: yahoo only }]
 skills:
-  inline: [demo/hello]
+  inline: [hello]
 cron: cron/jobs.yaml
 setup:
   python:
@@ -32,10 +32,10 @@ setup:
   mkdirSync(join(root, "soul"));
   writeFileSync(join(root, "soul", "01-identity.md"), "# Identity");
   writeFileSync(join(root, "soul", "02-rules.md"), "# Rules");
-  mkdirSync(join(root, "skills", "demo", "hello"), { recursive: true });
-  writeFileSync(join(root, "skills", "demo", "hello", "SKILL.md"), "---\nname: hello\n---");
-  mkdirSync(join(root, "skills", "demo", "hello", "references"), { recursive: true });
-  writeFileSync(join(root, "skills", "demo", "hello", "references", "guide.md"), "guide");
+  mkdirSync(join(root, "skills", "hello"), { recursive: true });
+  writeFileSync(join(root, "skills", "hello", "SKILL.md"), "---\nname: hello\n---");
+  mkdirSync(join(root, "skills", "hello", "references"), { recursive: true });
+  writeFileSync(join(root, "skills", "hello", "references", "guide.md"), "guide");
   mkdirSync(join(root, "cron"));
   writeFileSync(join(root, "cron", "jobs.yaml"),
     'jobs:\n  - { id: tick, schedule: "0 9 * * *", prompt: tick, model: default }\n');
@@ -43,7 +43,7 @@ setup:
   writeFileSync(join(root, "assets", "portfolio", "engine.py"), "print(1)");
   mkdirSync(join(root, "assets", "portfolio", "__pycache__"), { recursive: true });
   writeFileSync(join(root, "assets", "portfolio", "__pycache__", "engine.cpython-311.pyc"), "junk");
-  writeFileSync(join(root, "skills", "demo", "hello", ".DS_Store"), "junk");
+  writeFileSync(join(root, "skills", "hello", ".DS_Store"), "junk");
   return root;
 }
 
@@ -74,8 +74,8 @@ describe("hermesAdapter.build", () => {
       "profile/SOUL.template.md",
       "profile/config.template.yaml",
       "profile/cron/jobs.template.json",
-      "skills/demo/hello/SKILL.md",
-      "skills/demo/hello/references/guide.md",
+      "skills/hello/SKILL.md",
+      "skills/hello/references/guide.md",
       "skills/twitter-post/SKILL.md",
       "skills/twitter-post/scripts/post.py",
       "skills/twitter-post/assets/icon.bin",
@@ -94,7 +94,7 @@ describe("hermesAdapter.build", () => {
 
   it("excludes __pycache__ / .pyc / .DS_Store junk from the bundle", () => {
     expect(existsSync(join(out, "portfolio/__pycache__"))).toBe(false);
-    expect(existsSync(join(out, "skills/demo/hello/.DS_Store"))).toBe(false);
+    expect(existsSync(join(out, "skills/hello/.DS_Store"))).toBe(false);
   });
 
   it("concatenates soul files in order", () => {

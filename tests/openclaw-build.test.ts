@@ -20,7 +20,7 @@ env:
   required: [{ name: AISA_API_KEY, description: gateway }]
   optional: [{ name: FINNHUB_API_KEY, description: fallback, degrade: yahoo only }]
 skills:
-  inline: [demo/hello]
+  inline: [hello]
 cron: cron/jobs.yaml
 setup:
   python:
@@ -28,7 +28,7 @@ setup:
 targets:
   openclaw:
     command_allowlist:
-      - "python3 {{SKILLS_DIR}}/demo/hello/scripts/run.py *"
+      - "python3 {{SKILLS_DIR}}/hello/scripts/run.py *"
     quick_commands:
       "888":
         command: "python3 {{PORTFOLIO_DIR}}/valuation_push.py"
@@ -40,10 +40,10 @@ vars:
   mkdirSync(join(root, "soul"));
   writeFileSync(join(root, "soul", "01-identity.md"), "# Identity");
   writeFileSync(join(root, "soul", "02-rules.md"), "# Rules");
-  mkdirSync(join(root, "skills", "demo", "hello"), { recursive: true });
-  writeFileSync(join(root, "skills", "demo", "hello", "SKILL.md"), "---\nname: hello\n---");
-  mkdirSync(join(root, "skills", "demo", "hello", "references"), { recursive: true });
-  writeFileSync(join(root, "skills", "demo", "hello", "references", "guide.md"), "guide");
+  mkdirSync(join(root, "skills", "hello"), { recursive: true });
+  writeFileSync(join(root, "skills", "hello", "SKILL.md"), "---\nname: hello\n---");
+  mkdirSync(join(root, "skills", "hello", "references"), { recursive: true });
+  writeFileSync(join(root, "skills", "hello", "references", "guide.md"), "guide");
   mkdirSync(join(root, "cron"));
   writeFileSync(join(root, "cron", "jobs.yaml"),
     'jobs:\n  - { id: tick, schedule: "0 9 * * *", prompt: tick, model: default }\n');
@@ -51,7 +51,7 @@ vars:
   writeFileSync(join(root, "assets", "portfolio", "engine.py"), "print(1)");
   mkdirSync(join(root, "assets", "portfolio", "__pycache__"), { recursive: true });
   writeFileSync(join(root, "assets", "portfolio", "__pycache__", "engine.cpython-311.pyc"), "junk");
-  writeFileSync(join(root, "skills", "demo", "hello", ".DS_Store"), "junk");
+  writeFileSync(join(root, "skills", "hello", ".DS_Store"), "junk");
   return root;
 }
 
@@ -80,7 +80,7 @@ describe("openclawAdapter.build", () => {
   it("emits the workspace bundle layout", () => {
     for (const f of [
       "workspace/SOUL.md", "workspace/AGENTS.md",
-      "workspace/skills/demo/hello/SKILL.md",
+      "workspace/skills/hello/SKILL.md",
       "workspace/skills/twitter-post/SKILL.md",
       "workspace/scripts/ensure-venv.sh",
       "workspace/scripts/ensure-data.sh",
@@ -93,7 +93,7 @@ describe("openclawAdapter.build", () => {
 
   it("AGENTS.md carries allowlist + quick commands with rendered vars", () => {
     const md = readFileSync(join(out, "workspace/AGENTS.md"), "utf8");
-    expect(md).toContain("$HOME/.openclaw/workspace-cio/skills/demo/hello/scripts/run.py");
+    expect(md).toContain("$HOME/.openclaw/workspace-cio/skills/hello/scripts/run.py");
     expect(md).toContain("888");
     expect(md).toContain("~/.aisa/agents/cio/portfolio/valuation_push.py");
     expect(md).not.toContain("{{");

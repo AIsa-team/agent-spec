@@ -25,7 +25,7 @@ Remote skills are declared explicitly and resolved at build time:
 ```yaml
 skills:
   inline:
-    - finance/portfolio-report
+    - portfolio-report
   remote:
     - type: git
       url: https://github.com/example/shared-skills.git
@@ -44,12 +44,38 @@ my-agent/                      # one agent definition (its own git repo)
 ├── agent.yaml                 # manifest — see field table below
 ├── soul/                      # persona prompt, markdown ({{VARS}} allowed)
 │   └── SOUL.md
-├── skills/                    # inline skills (SKILL.md + scripts)
-│   └── finance/portfolio-report/…
+├── skills/                    # inline skills (SKILL.md + scripts), always flat
+│   └── portfolio-report/…     # one level only — see "Inline skills are flat"
 ├── cron/
 │   └── jobs.yaml              # runtime-agnostic scheduled tasks
 └── assets/                    # extra code/data copied into the build as-is
 ```
+
+### Inline skills are flat
+
+Every `skills.inline` entry is a single directory name — `portfolio-report`, never
+`finance/portfolio-report`. The schema rejects `/`.
+
+This is not a stylistic preference. Skill discovery is not part of the
+[open spec](https://agentskills.io/specification), which defines only a single
+skill's internal layout, so every runtime implements its own — and most scan
+exactly one level:
+
+| Runtime | Nested skills |
+| --- | --- |
+| Claude Code plugins | not discovered |
+| Codex plugin skill roots (`DirectChildren`) | not discovered |
+| Gemini CLI (globs `['SKILL.md', '*/SKILL.md']`) | not discovered |
+| Codex non-plugin roots (`.agents/skills`) | discovered, max depth 6 |
+| Cursor | discovered, documented recursive |
+
+Nested skills fail **silently** — they are dropped with no warning, and
+`claude plugin validate` still passes because it validates the manifest and
+never checks that on-disk skills are reachable. Anthropic's own `anthropics/skills`
+repo keeps skills flat and expresses grouping in the marketplace manifest instead.
+
+Group skills with naming (`portfolio-report`, `portfolio-update`) or with
+frontmatter metadata, not with directories. See ADR-0009 in `aisa-agent-platform`.
 
 ## agent.yaml fields
 
