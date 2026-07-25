@@ -15,12 +15,12 @@ name: ${JSON.stringify(name)}
 version: 1.0.0
 description: AI CIO
 skills:
-  inline: [demo/hello]
+  inline: [hello]
 `);
   mkdirSync(join(root, "soul"));
   writeFileSync(join(root, "soul", "01-identity.md"), "# Identity\n{{SKILLS_DIR}}");
-  mkdirSync(join(root, "skills", "demo", "hello"), { recursive: true });
-  writeFileSync(join(root, "skills", "demo", "hello", "SKILL.md"), "---\nname: hello\n---\nhi");
+  mkdirSync(join(root, "skills", "hello"), { recursive: true });
+  writeFileSync(join(root, "skills", "hello", "SKILL.md"), "---\nname: hello\n---\nhi");
   return root;
 }
 
@@ -39,7 +39,7 @@ describe("codexPluginAdapter.build", () => {
   it("emits the plugin layout — no agents/, no settings.json", () => {
     expect(existsSync(join(out, ".codex-plugin/plugin.json"))).toBe(true);
     expect(existsSync(join(out, "skills/soul/SKILL.md"))).toBe(true);
-    expect(existsSync(join(out, "skills/demo/hello/SKILL.md"))).toBe(true);
+    expect(existsSync(join(out, "skills/hello/SKILL.md"))).toBe(true);
     expect(existsSync(join(out, "agents"))).toBe(false);
     expect(existsSync(join(out, "settings.json"))).toBe(false);
   });

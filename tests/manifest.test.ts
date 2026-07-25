@@ -22,7 +22,7 @@ env:
       degrade: skip fallback, Yahoo only
 skills:
   inline:
-    - finance/portfolio-report
+    - portfolio-report
   remote:
     - type: git
       url: https://github.com/AISA-skills/marketing-skills.git
@@ -205,6 +205,24 @@ description: d
   it("rejects non-semver version", () => {
     expect(() => parseManifest(VALID.replace("version: 1.0.0", "version: latest")))
       .toThrow(/version/);
+  });
+
+  // Claude Code plugins, Codex plugin skill roots and Gemini CLI all discover
+  // skills exactly one level under skills/ and drop anything deeper *silently*.
+  // The schema is the only gate, so these cases must stay rejected.
+  it("rejects a nested inline skill path", () => {
+    expect(() => parseManifest(VALID.replace("- portfolio-report", "- finance/portfolio-report")))
+      .toThrow(/flat skill directory name/);
+  });
+
+  it("rejects an inline skill path that escapes the project root", () => {
+    expect(() => parseManifest(VALID.replace("- portfolio-report", "- ../../etc/passwd")))
+      .toThrow(/flat skill directory name/);
+  });
+
+  it("accepts a leading underscore for helper skills", () => {
+    const m = parseManifest(VALID.replace("- portfolio-report", "- _shared"));
+    expect(m.skills.inline).toContain("_shared");
   });
 });
 

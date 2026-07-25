@@ -18,7 +18,7 @@ description: AI CIO
 env:
   required: [{ name: AISA_API_KEY, description: gateway }]
 skills:
-  inline: [plain/hello, finance/scan, gateway/search]
+  inline: [hello, scan, search]
 setup:
   python:
     - { name: dsa, requirements: requirements/dsa.txt, env: DSA_VENV_PYTHON, optional: true }
@@ -28,18 +28,18 @@ setup:
   mkdirSync(join(root, "soul"));
   writeFileSync(join(root, "soul", "01-id.md"), "# Identity");
   // 纯指令 skill:无注入
-  mkdirSync(join(root, "skills", "plain", "hello"), { recursive: true });
-  writeFileSync(join(root, "skills", "plain", "hello", "SKILL.md"),
+  mkdirSync(join(root, "skills", "hello"), { recursive: true });
+  writeFileSync(join(root, "skills", "hello", "SKILL.md"),
     "---\nname: hello\n---\nJust instructions in {{SKILLS_DIR}}.");
   // venv skill:引用 {{DSA_VENV_PYTHON}}
-  mkdirSync(join(root, "skills", "finance", "scan"), { recursive: true });
-  writeFileSync(join(root, "skills", "finance", "scan", "SKILL.md"),
+  mkdirSync(join(root, "skills", "scan"), { recursive: true });
+  writeFileSync(join(root, "skills", "scan", "SKILL.md"),
     "---\nname: scan\n---\nRun {{DSA_VENV_PYTHON}} scan.py in {{PORTFOLIO_DIR}}");
   // env skill:正文提到 AISA_API_KEY
-  mkdirSync(join(root, "skills", "gateway", "search"), { recursive: true });
-  writeFileSync(join(root, "skills", "gateway", "search", "SKILL.md"),
+  mkdirSync(join(root, "skills", "search"), { recursive: true });
+  writeFileSync(join(root, "skills", "search", "SKILL.md"),
     "---\nname: search\n---\nCalls the gateway with AISA_API_KEY.");
-  writeFileSync(join(root, "skills", "gateway", "search", "icon.bin"),
+  writeFileSync(join(root, "skills", "search", "icon.bin"),
     Buffer.from([0, 255, 1]));
   return root;
 }
@@ -54,29 +54,29 @@ describe("buildPluginTree", () => {
       { project, resolvedSkills: [] }, out, "${CLAUDE_PLUGIN_ROOT}"));
   });
 
-  it("copies skills preserving inline hierarchy and renders text files", () => {
-    const md = readFileSync(join(out, "skills/plain/hello/SKILL.md"), "utf8");
+  it("copies each inline skill to a flat skills/<name>/ dir and renders text files", () => {
+    const md = readFileSync(join(out, "skills/hello/SKILL.md"), "utf8");
     expect(md).toContain("${CLAUDE_PLUGIN_ROOT}/skills");
     expect(md).not.toMatch(/\{\{/);
   });
 
   it("keeps binary files byte-for-byte", () => {
-    expect(readFileSync(join(out, "skills/gateway/search/icon.bin")))
+    expect(readFileSync(join(out, "skills/search/icon.bin")))
       .toEqual(Buffer.from([0, 255, 1]));
   });
 
   it("injects venv bootstrap into venv-referencing skills only", () => {
-    expect(readFileSync(join(out, "skills/finance/scan/SKILL.md"), "utf8"))
+    expect(readFileSync(join(out, "skills/scan/SKILL.md"), "utf8"))
       .toContain("ensure-venv.sh\" dsa");
-    expect(readFileSync(join(out, "skills/plain/hello/SKILL.md"), "utf8"))
+    expect(readFileSync(join(out, "skills/hello/SKILL.md"), "utf8"))
       .not.toContain("ensure-venv.sh");
   });
 
   it("injects env checks for declared env names and runtime vars", () => {
-    expect(readFileSync(join(out, "skills/gateway/search/SKILL.md"), "utf8"))
+    expect(readFileSync(join(out, "skills/search/SKILL.md"), "utf8"))
       .toContain("AISA_API_KEY");
     // {{PORTFOLIO_DIR}} 降级成 ${PORTFOLIO_DIR} → 该 skill 也要求 env 检查
-    expect(readFileSync(join(out, "skills/finance/scan/SKILL.md"), "utf8"))
+    expect(readFileSync(join(out, "skills/scan/SKILL.md"), "utf8"))
       .toContain("PORTFOLIO_DIR");
   });
 
@@ -104,12 +104,12 @@ name: Neo CIO
 version: 1.0.0
 description: AI CIO
 skills:
-  inline: [order/late-env]
+  inline: [late-env]
 `);
-    mkdirSync(join(root, "skills", "order", "late-env"), { recursive: true });
-    writeFileSync(join(root, "skills", "order", "late-env", "SKILL.md"),
+    mkdirSync(join(root, "skills", "late-env"), { recursive: true });
+    writeFileSync(join(root, "skills", "late-env", "SKILL.md"),
       "---\nname: late-env\n---\nNo template refs here.");
-    writeFileSync(join(root, "skills", "order", "late-env", "utils.py"),
+    writeFileSync(join(root, "skills", "late-env", "utils.py"),
       "TOKEN = '{{API_TOKEN}}'\n");
     return root;
   }
@@ -120,7 +120,7 @@ skills:
     const { runtimeEnvVars } = await buildPluginTree(
       { project, resolvedSkills: [] }, out, "${CLAUDE_PLUGIN_ROOT}");
     expect(runtimeEnvVars).toContain("API_TOKEN");
-    expect(readFileSync(join(out, "skills/order/late-env/SKILL.md"), "utf8"))
+    expect(readFileSync(join(out, "skills/late-env/SKILL.md"), "utf8"))
       .toContain("API_TOKEN");
   });
 });
@@ -146,12 +146,12 @@ vars:
   PORTFOLIO_DIR: { default: "~/.aisa/agents/cio/portfolio", env: true }
   OWNER: { default: "Owner" }
 skills:
-  inline: [finance/report]
+  inline: [report]
 `);
     mkdirSync(join(root, "soul"));
     writeFileSync(join(root, "soul", "01-id.md"), "# Id");
-    mkdirSync(join(root, "skills", "finance", "report"), { recursive: true });
-    writeFileSync(join(root, "skills", "finance", "report", "SKILL.md"),
+    mkdirSync(join(root, "skills", "report"), { recursive: true });
+    writeFileSync(join(root, "skills", "report", "SKILL.md"),
       "---\nname: report\n---\nRead `{{PORTFOLIO_DIR}}/portfolio_truth.json` for {{OWNER}}.");
     mkdirSync(join(root, "assets", "portfolio"), { recursive: true });
     writeFileSync(join(root, "assets", "portfolio", "portfolio_truth.json"), "{}");
@@ -169,7 +169,7 @@ skills:
   });
 
   it("renders defaulted vars to literals and keeps them out of runtimeEnvVars", () => {
-    const md = readFileSync(join(out, "skills/finance/report/SKILL.md"), "utf8");
+    const md = readFileSync(join(out, "skills/report/SKILL.md"), "utf8");
     expect(md).toContain("~/.aisa/agents/cio/portfolio/portfolio_truth.json");
     expect(md).toContain("for Owner.");
     expect(md).not.toMatch(/\{\{/);
@@ -177,7 +177,7 @@ skills:
   });
 
   it("injects data bootstrap (not hard env-check) for env-overridable defaulted vars", () => {
-    const md = readFileSync(join(out, "skills/finance/report/SKILL.md"), "utf8");
+    const md = readFileSync(join(out, "skills/report/SKILL.md"), "utf8");
     expect(md).toContain("ensure-data.sh");
     expect(md).toContain("export `PORTFOLIO_DIR` to override");
     expect(md).not.toContain("Required environment");
