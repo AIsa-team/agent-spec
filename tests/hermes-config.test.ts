@@ -52,3 +52,51 @@ describe("buildHermesConfig", () => {
     expect(cfg.providers.aisa.models.length).toBeGreaterThan(0);     // 未注入时保留静态列表
   });
 });
+
+// hermes 读 config.yaml 时不会先替换 {{TOKEN}} —— 上面的用例替换后再 parse,
+// 恰好绕开了唯一会炸的情况。这里按 hermes 的方式原样解析。
+describe("buildHermesConfig output parses without substituting tokens first", () => {
+  const leading = parseManifest(`
+spec: agentspec/v1
+id: cio
+name: Neo CIO
+version: 1.0.0
+description: d
+language: zh
+models: { default: deepseek-v4-pro, provider: aisa }
+setup:
+  python:
+    - { name: sec, requirements: requirements/sec.txt, env: SEC_VENV_PYTHON, optional: true }
+targets:
+  hermes:
+    config:
+      terminal: { cwd: "{{PORTFOLIO_DIR}}" }
+      command_allowlist:
+        - "python3 {{SKILLS_DIR}}/marketpulse/scripts/market_client.py *"
+        - "{{SEC_VENV_PYTHON}} {{SKILLS_DIR}}/sec-filings/scripts/sec_boot.py *"
+        - "{{SEC_VENV_PYTHON}} -c *"
+      quick_commands:
+        "888": { type: exec, command: "{{PORTFOLIO_DIR}}/valuation_push.py" }
+`);
+  const text = buildHermesConfig(leading);
+
+  it("quotes scalars that begin with a template token", () => {
+    // 以 {{VAR}} 开头的裸标量会被 YAML 当成 flow mapping,整份文件解析失败;
+    // 而 hermes 对坏 config 是静默回退默认值 —— 模型 / command_allowlist /
+    // quick_commands 全部失效且不报错。所以必须能原样 parse。
+    expect(() => parseYaml(text)).not.toThrow();
+
+    const cfg = parseYaml(text) as any;
+    expect(cfg.command_allowlist).toEqual([
+      "python3 {{SKILLS_DIR}}/marketpulse/scripts/market_client.py *",
+      "{{SEC_VENV_PYTHON}} {{SKILLS_DIR}}/sec-filings/scripts/sec_boot.py *",
+      "{{SEC_VENV_PYTHON}} -c *",
+    ]);
+    expect(cfg.quick_commands["888"].command).toBe("{{PORTFOLIO_DIR}}/valuation_push.py");
+    expect(cfg.terminal.cwd).toBe("{{PORTFOLIO_DIR}}");
+  });
+
+  it("leaves mid-string tokens unquoted so the diff stays minimal", () => {
+    expect(text).toContain("- python3 {{SKILLS_DIR}}/marketpulse/scripts/market_client.py *");
+  });
+});
