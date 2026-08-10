@@ -29,10 +29,20 @@ export {
 export { hermesAdapter } from "./adapters/hermes/index.js";
 export { claudePluginAdapter } from "./adapters/claude-plugin/index.js";
 export { codexPluginAdapter } from "./adapters/codex-plugin/index.js";
+export { agentPluginAdapter } from "./adapters/agent-plugin/index.js";
 export { openclawAdapter } from "./adapters/openclaw/index.js";
 export { buildOpenclawAgentsMd } from "./adapters/openclaw/agents-md.js";
 export { buildOpenclawCronSetup, OPENCLAW_CRON_NOTE } from "./adapters/openclaw/cron-setup.js";
 export { buildEnvExample } from "./envfile.js";
+export {
+  AGENT_PLUGINS_VERSION,
+  AGENT_PLUGIN_SCHEMA_URL,
+  agentPluginManifestSchema,
+  parseAgentPluginManifest,
+  parseAgentSkillFrontmatter,
+  validateAgentPluginDirectory,
+  type AgentPluginManifest,
+} from "./agent-plugins.js";
 export {
   emptyIndex,
   parseIndex,
