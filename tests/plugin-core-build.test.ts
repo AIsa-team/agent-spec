@@ -41,6 +41,10 @@ setup:
     "---\nname: search\n---\nCalls the gateway with AISA_API_KEY.");
   writeFileSync(join(root, "skills", "search", "icon.bin"),
     Buffer.from([0, 255, 1]));
+  writeFileSync(join(root, "README.md"), "# Neo CIO\n\nSkills live in {{SKILLS_DIR}}.");
+  // {{OWNER}} 故意留在 LICENSE 里:它必须原样出现在产物中,证明没被渲染
+  writeFileSync(join(root, "LICENSE"), "MIT License\n\nCopyright (c) {{OWNER}}\n");
+  writeFileSync(join(root, "NOTES.md"), "private scratch notes");
   return root;
 }
 
@@ -58,6 +62,23 @@ describe("buildPluginTree", () => {
     const md = readFileSync(join(out, "skills/hello/SKILL.md"), "utf8");
     expect(md).toContain("${CLAUDE_PLUGIN_ROOT}/skills");
     expect(md).not.toMatch(/\{\{/);
+  });
+
+  it("ships README.md through template rendering", () => {
+    const md = readFileSync(join(out, "README.md"), "utf8");
+    expect(md).toContain("${CLAUDE_PLUGIN_ROOT}/skills");
+    expect(md).not.toMatch(/\{\{/);
+  });
+
+  it("ships LICENSE verbatim, without template rendering", () => {
+    // 法律文本必须逐字节保真 —— {{OWNER}} 原样保留,不做变量替换
+    expect(readFileSync(join(out, "LICENSE"), "utf8"))
+      .toBe("MIT License\n\nCopyright (c) {{OWNER}}\n");
+  });
+
+  it("does not sweep other root-level files into the plugin", () => {
+    expect(existsSync(join(out, "NOTES.md"))).toBe(false);
+    expect(existsSync(join(out, "agent.yaml"))).toBe(false);
   });
 
   it("keeps binary files byte-for-byte", () => {

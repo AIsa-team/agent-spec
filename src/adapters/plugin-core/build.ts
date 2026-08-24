@@ -114,5 +114,19 @@ export async function buildPluginTree(
     await writeFile(sh, ensureDataScript(m));
     await chmod(sh, 0o755);
   }
+  // README / LICENSE 随包分发:发布时 plugin 目录被整目录替换
+  // (agent-delivery publish-plugins 先 rm -rf 再 cp),手工补进 agent-index
+  // 的文件下次发布就没了 —— 只能由构建产出。
+  // 文本类走模板渲染,与 SOUL.md / SKILL.md 同一条规则;LICENSE 无扩展名、
+  // 不在 TEXT_EXTS 里,原样复制 —— 法律文本不能被 {{VAR}} 替换改写。
+  for (const name of project.docEntries) {
+    const src = join(project.root, name);
+    const dst = join(outDir, name);
+    if (TEXT_EXTS.has(extname(name)))
+      await writeFile(dst, renderPluginText(await readFile(src, "utf8"), vars).text);
+    else
+      await cp(src, dst);
+  }
+
   return { runtimeEnvVars: [...allRuntime].sort() };
 }
