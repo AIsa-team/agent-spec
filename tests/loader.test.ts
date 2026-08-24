@@ -28,6 +28,8 @@ function makeFixture(): string {
     'jobs:\n  - { id: tick, schedule: "0 9 * * *", prompt: tick }\n');
   mkdirSync(join(root, "assets", "engine"), { recursive: true });
   writeFileSync(join(root, "assets", "engine", "main.py"), "print('hi')");
+  writeFileSync(join(root, "README.md"), "# Fixture");
+  writeFileSync(join(root, "NOTES.md"), "private scratch notes");
   return root;
 }
 
@@ -42,6 +44,12 @@ describe("loadAgentProject", () => {
     expect(p.cronJobs[0].id).toBe("tick");
     expect(p.inlineSkillDirs[0]).toBe(join(root, "skills", "hello"));
     expect(p.assetEntries).toEqual(["engine"]);
+  });
+
+  it("collects only whitelisted root docs that exist", async () => {
+    const p = await loadAgentProject(root);
+    // LICENSE 不存在 -> 不出现;NOTES.md 不在白名单 -> 不收录
+    expect(p.docEntries).toEqual(["README.md"]);
   });
 
   it("fails when a declared inline skill dir is missing SKILL.md", async () => {

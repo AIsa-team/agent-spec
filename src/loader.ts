@@ -11,7 +11,13 @@ export interface AgentProject {
   cronJobs: CronJob[];
   inlineSkillDirs: string[];
   assetEntries: string[];
+  /** 根级随包文档(README.md / LICENSE),存在才收录;见 DOC_ENTRIES */
+  docEntries: string[];
 }
+
+/** 根级随包文档白名单。不扫整个根目录:agent.yaml / agent.lock.json / 本地
+ *  笔记都在那里,全量收录会把源项目的私有文件推进公开 plugin 目录。 */
+const DOC_ENTRIES = ["README.md", "LICENSE"];
 
 async function readMdTree(dir: string, base = ""): Promise<{ relPath: string; content: string }[]> {
   const out: { relPath: string; content: string }[] = [];
@@ -60,5 +66,7 @@ export async function loadAgentProject(dir: string): Promise<AgentProject> {
   if (existsSync(assetsDir) && (await stat(assetsDir)).isDirectory())
     assetEntries = (await readdir(assetsDir)).sort();
 
-  return { root, manifest, soulFiles, cronJobs, inlineSkillDirs, assetEntries };
+  const docEntries = DOC_ENTRIES.filter((name) => existsSync(join(root, name)));
+
+  return { root, manifest, soulFiles, cronJobs, inlineSkillDirs, assetEntries, docEntries };
 }
