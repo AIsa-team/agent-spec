@@ -3,7 +3,10 @@ export const AGENTSPEC_VERSION = "agentspec/v1";
 export {
   parseManifest,
   AgentSpecError,
+  RELEASE_TARGETS,
+  effectiveReleaseTargets,
   type AgentManifest,
+  type ReleaseTarget,
   type RemoteSkillRef,
   type EnvVarDecl,
   type VarDecl,

@@ -1,16 +1,18 @@
 import { describe, it, expect } from "vitest";
 import * as api from "../src/index.js";
-import type { GitRunner, RemoteSkillRef } from "../src/index.js";
+import type { GitRunner, ReleaseTarget, RemoteSkillRef } from "../src/index.js";
 
 const remoteTypeProbe: RemoteSkillRef = {
   type: "git", url: "https://example.com/repo.git", path: "hello", name: "hello", ref: "main",
 };
 const gitTypeProbe: GitRunner = async () => ({ code: 0, stdout: Buffer.alloc(0), stderr: "" });
+const releaseTargetTypeProbe: ReleaseTarget = "agent-plugin";
 
 describe("public api", () => {
   it("exposes the complete surface", () => {
     for (const name of [
       "AGENTSPEC_VERSION", "parseManifest", "AgentSpecError",
+      "RELEASE_TARGETS", "effectiveReleaseTargets",
       "parseCronJobs", "loadAgentProject", "resolveSkills",
       "realGitRunner", "REMOTE_SKILL_LIMITS",
       "createLock", "serializeLock", "parseLock",
@@ -20,6 +22,10 @@ describe("public api", () => {
     expect(api).not.toHaveProperty("DEFAULT_SKILLS_REPO");
     expect(remoteTypeProbe.name).toBe("hello");
     expect(gitTypeProbe).toBeTypeOf("function");
+    expect(releaseTargetTypeProbe).toBe("agent-plugin");
+    expect(api.RELEASE_TARGETS).toEqual([
+      "hermes", "openclaw", "claude-plugin", "codex-plugin", "agent-plugin",
+    ]);
   });
 
   it("hermes adapter is registered by importing the index", () => {

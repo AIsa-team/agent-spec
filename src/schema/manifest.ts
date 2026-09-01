@@ -16,6 +16,38 @@ const inlineSkillName = z.string().regex(
   'must be a flat skill directory name (lowercase, no "/" — nested skills are not discoverable)');
 const semver = z.string().regex(/^\d+\.\d+\.\d+$/, "must be semver x.y.z");
 
+/**
+ * Publishable targets controlled by agent.yaml `release.targets`.
+ * Keep this list in one place so release tooling never reimplements the
+ * manifest default or drifts from schema validation.
+ */
+export const RELEASE_TARGETS = [
+  "hermes",
+  "openclaw",
+  "claude-plugin",
+  "codex-plugin",
+  "agent-plugin",
+] as const;
+
+export type ReleaseTarget = (typeof RELEASE_TARGETS)[number];
+
+const releaseTargetsSchema = z.array(z.enum(RELEASE_TARGETS)).min(
+  1,
+  "must contain at least one release target",
+).superRefine((targets, ctx) => {
+  const seen = new Set<ReleaseTarget>();
+  for (const [index, target] of targets.entries()) {
+    if (seen.has(target)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [index],
+        message: `duplicate release target "${target}"`,
+      });
+    }
+    seen.add(target);
+  }
+});
+
 const envVarDecl = z.object({
   name: z.string().regex(/^[A-Z][A-Z0-9_]*$/),
   description: z.string(),
@@ -154,6 +186,11 @@ const manifestSchema = z.object({
     channel: z.enum(["latest", "pinned"]).default("latest"),
     auto: z.boolean().default(true),
   }).default({ channel: "latest", auto: true }),
+  // Optional for agentspec/v1 additive compatibility. Consumers must use
+  // effectiveReleaseTargets() rather than reading this field directly.
+  release: z.object({
+    targets: releaseTargetsSchema,
+  }).strict().optional(),
   targets: z.object({
     hermes: z.object({
       config: z.record(z.unknown()).default({}),
@@ -171,6 +208,19 @@ export type RemoteSkillRef = z.infer<typeof remoteSkillRef>;
 export type EnvVarDecl = z.infer<typeof envVarDecl>;
 export type PythonSetup = z.infer<typeof pythonSetup>;
 export type VarDecl = z.infer<typeof varDecl>;
+
+/**
+ * Return the targets that release tooling must build, validate, and publish.
+ * Older manifests omit `release`; preserving their historical behavior means
+ * publishing every target known when this additive contract was introduced.
+ */
+export function effectiveReleaseTargets(
+  manifest: Pick<AgentManifest, "release">,
+): ReleaseTarget[] {
+  if (!manifest.release) return [...RELEASE_TARGETS];
+  const selected = new Set(manifest.release.targets);
+  return RELEASE_TARGETS.filter((target) => selected.has(target));
+}
 
 export function parseManifest(yamlText: string): AgentManifest {
   let raw: unknown;
