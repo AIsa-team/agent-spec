@@ -13,11 +13,18 @@ npm i @aisa-one/agent-spec
 ## Usage
 
 ```ts
-import { loadAgentProject, resolveSkills, getAdapter } from "@aisa-one/agent-spec";
+import {
+  effectiveReleaseTargets,
+  loadAgentProject,
+  resolveSkills,
+  getAdapter,
+} from "@aisa-one/agent-spec";
 
 const project = await loadAgentProject("./my-agent");
 const skills = await resolveSkills(project.manifest.skills.remote);
-const result = await getAdapter("hermes").build({ project, resolvedSkills: skills }, "./out");
+for (const target of effectiveReleaseTargets(project.manifest)) {
+  await getAdapter(target).build({ project, resolvedSkills: skills }, `./out/${target}`);
+}
 ```
 
 Remote skills are declared explicitly and resolved at build time:
@@ -93,7 +100,15 @@ frontmatter metadata, not with directories. See ADR-0009 in `aisa-agent-platform
 | `skills.remote` | public HTTPS Git skills: explicit `url` + repository `path`, optional output `name`, and `ref` (default `main`); pinned to a commit in `agent.lock.json` |
 | `cron` | path to the cron jobs YAML (optional) |
 | `update` | `channel: latest\|pinned`, `auto: true\|false` — auto-update policy |
+| `release.targets` | optional non-empty, unique subset of `hermes`, `openclaw`, `claude-plugin`, `codex-plugin`, `agent-plugin`; controls which artifacts release tooling produces; omission preserves legacy behavior by selecting all five |
 | `targets.hermes.config` | hermes-only config overrides, deep-merged onto the base profile config |
+
+`release.targets` and `targets` have different responsibilities: `release.targets`
+selects publish artifacts, while `targets.<runtime>` contains runtime-specific
+configuration. Release tooling should call `effectiveReleaseTargets(manifest)`
+instead of reading the optional field or reimplementing its default. The field is
+a set: declaration order has no scheduling meaning, and the helper returns the
+selected targets in the canonical order exported as `RELEASE_TARGETS`.
 
 ## Build output (hermes target)
 

@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { parseManifest, AgentSpecError } from "../src/schema/manifest.js";
+import {
+  parseManifest,
+  AgentSpecError,
+  RELEASE_TARGETS,
+  effectiveReleaseTargets,
+} from "../src/schema/manifest.js";
 
 const VALID = `
 spec: agentspec/v1
@@ -252,5 +257,54 @@ targets:
     const m = parseManifest(base + "targets:\n  openclaw: {}\n");
     expect(m.targets?.openclaw?.command_allowlist).toEqual([]);
     expect(m.targets?.openclaw?.quick_commands).toEqual({});
+  });
+});
+
+describe("release.targets", () => {
+  const base = `
+spec: agentspec/v1
+id: release-targets
+name: Release Targets
+version: 1.0.0
+description: d
+`;
+
+  it("accepts an explicit subset and returns it in canonical order", () => {
+    const manifest = parseManifest(base + `
+release:
+  targets:
+    - agent-plugin
+    - hermes
+`);
+
+    expect(manifest.release?.targets).toEqual(["agent-plugin", "hermes"]);
+    expect(effectiveReleaseTargets(manifest)).toEqual(["hermes", "agent-plugin"]);
+  });
+
+  it("defaults an omitted release block to all five targets", () => {
+    const manifest = parseManifest(base);
+
+    expect(manifest.release).toBeUndefined();
+    expect(effectiveReleaseTargets(manifest)).toEqual(RELEASE_TARGETS);
+    expect(effectiveReleaseTargets(manifest)).not.toBe(RELEASE_TARGETS);
+  });
+
+  it("rejects an empty target list", () => {
+    expect(() => parseManifest(base + "release:\n  targets: []\n"))
+      .toThrow(/release\.targets.*at least one/i);
+  });
+
+  it("rejects duplicate targets", () => {
+    expect(() => parseManifest(base + `
+release:
+  targets: [hermes, hermes]
+`)).toThrow(/duplicate release target.*hermes/i);
+  });
+
+  it("rejects unknown targets", () => {
+    expect(() => parseManifest(base + `
+release:
+  targets: [hermes, future-runtime]
+`)).toThrow(/release\.targets|invalid enum/i);
   });
 });
