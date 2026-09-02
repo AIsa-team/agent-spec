@@ -100,3 +100,42 @@ targets:
     expect(text).toContain("- python3 {{SKILLS_DIR}}/marketpulse/scripts/market_client.py *");
   });
 });
+
+describe("buildHermesConfig MCP passthrough", () => {
+  it("preserves the AISA MCP URL and literal API-key placeholder without leaking the environment", () => {
+    const previousApiKey = process.env.AISA_API_KEY;
+    const realApiKey = "aisa-real-key-must-not-leak";
+    process.env.AISA_API_KEY = realApiKey;
+
+    try {
+      const mcpManifest = parseManifest(`
+spec: agentspec/v1
+id: cmo
+name: AIsa CMO
+version: 0.1.2
+description: d
+targets:
+  hermes:
+    config:
+      mcp_servers:
+        aisa-tools:
+          url: https://tools.aisa.one/mcp
+          headers:
+            Authorization: 'Bearer \${AISA_API_KEY}'
+`);
+
+      const text = buildHermesConfig(mcpManifest);
+      const cfg = parseYaml(text) as any;
+
+      expect(cfg.mcp_servers["aisa-tools"]).toEqual({
+        url: "https://tools.aisa.one/mcp",
+        headers: { Authorization: "Bearer ${AISA_API_KEY}" },
+      });
+      expect(text).toContain("Bearer ${AISA_API_KEY}");
+      expect(text).not.toContain(realApiKey);
+    } finally {
+      if (previousApiKey === undefined) delete process.env.AISA_API_KEY;
+      else process.env.AISA_API_KEY = previousApiKey;
+    }
+  });
+});
